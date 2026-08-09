@@ -1,4 +1,4 @@
-import time
+ import time
 import sqlite3
 import requests
 import telebot
@@ -13,14 +13,28 @@ ADMIN_ID = 123456789  # ⚠️ Replace with your actual Telegram User ID
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
-# Helper function to create colored buttons using Bot API 8.0 style parameter
+# ----------------------------------------------------
+# TELEBOT BUTTON COLOR FIX (BOT API 8.0)
+# ----------------------------------------------------
+class StyledButton(InlineKeyboardButton):
+    def __init__(self, text, style=None, **kwargs):
+        super().__init__(text, **kwargs)
+        self.style = style
+
+    def to_dict(self):
+        data = super().to_dict()
+        if self.style:
+            data['style'] = self.style
+        return data
+
+# Helper function to generate colored buttons
 def c_btn(text, callback_data=None, web_app=None, style=None):
-    btn_dict = {}
-    if text: btn_dict['text'] = text
-    if callback_data: btn_dict['callback_data'] = callback_data
-    if web_app: btn_dict['web_app'] = web_app
-    if style: btn_dict['style'] = style  # 'primary' (blue), 'success' (green), 'danger' (red)
-    return InlineKeyboardButton.de_json(btn_dict)
+    return StyledButton(
+        text=text,
+        callback_data=callback_data,
+        web_app=web_app,
+        style=style  # Options: 'primary' (blue), 'success' (green), 'danger' (red)
+    )
 
 # ----------------------------------------------------
 # DATABASE INITIALIZATION & HELPERS
@@ -376,6 +390,5 @@ def handle_download(call):
     except Exception:
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-print("Bot running with Button Styles, SQLite Broadcast & Stats feature...")
+print("Bot running with custom StyledButton patch, SQLite & Admin features...")
 bot.infinity_polling()
-           
