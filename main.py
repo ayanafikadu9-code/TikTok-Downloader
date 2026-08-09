@@ -2,11 +2,7 @@ import time
 import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
-
-# ============ CONFIGURATION ============
-BOT_TOKEN = "8913902406:AAE5YB6XyXY4JBXbODODwOTl4P-dnV7T2rA"
-API_URL = "https://silent-mud-7026.codeofsaladin.workers.dev/tiktok"
-WEB_APP_URL = "https://ayanafikadu9-code.github.io/TikTok-Downloader/"
+from config import BOT_TOKEN, API_URL, WEB_APP_URL
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -74,7 +70,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 3. LINK DETECTION (AD GATE WITH RED & GREEN BUTTONS)
+# 3. LINK DETECTION (AD GATE)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -88,18 +84,18 @@ def handle_tiktok_link(message):
 
     if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (10 ሰንደንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
-            b_ad = "👁️ ማስታወቂያ ይመልከቱ (10s)"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰንደንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
+            b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
             b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
             b_prem = "⭐ ፕሪሚየም ይግዙ"
         elif lang == "om":
             gate_msg = "🔥 Sa'atii 24 ffaaf viidiyoo 10,000 bilisaan buufadhaa!"
-            b_ad = "👁️ Beeksisa Daawwadhaa (10s)"
+            b_ad = "👁️ Beeksisa Daawwadhaa (15s)"
             b_verify = "✅ Beeksisa Ilaaleera"
             b_prem = "⭐ Piriimiyamii Bitaa"
         else:
-            gate_msg = "🔥 Watch an ad or get Premium to unlock downloads:"
-            b_ad = "👁️ Watch ad (10s)"
+            gate_msg = "🔥 Watch an ad for 15 seconds or get Premium to unlock downloads:"
+            b_ad = "👁️ Watch ad (15s)"
             b_verify = "✅ I have watched the ad"
             b_prem = "⭐ Buy Premium"
 
@@ -120,11 +116,10 @@ def handle_tiktok_link(message):
 def handle_verify_ad(call):
     u_id = call.from_user.id
     current_time = int(time.time())
-    # Grant 24-hour pass upon clicking the confirmation button
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
     
     lang = get_user_attr(u_id, "lang", "en")
-    bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
+    bot.answer_callback_q_data = bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
     
     if lang == "am":
         prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
@@ -297,5 +292,5 @@ def handle_download(call):
     except Exception:
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-print("Bot is starting...")
+print("Modular Bot is starting...")
 bot.infinity_polling()
