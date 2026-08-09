@@ -3,46 +3,75 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader Ad</title>
+    <title>Advertisement</title>
     <style>
         body {
             font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: #fff;
             text-align: center;
             padding-top: 50px;
-            background-color: #111;
-            color: #fff;
+            margin: 0;
+        }
+        .container {
+            background: #1e293b;
+            padding: 30px;
+            margin: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
         }
         .timer {
-            font-size: 24px;
-            color: #ff3b30;
-            margin-top: 20px;
+            font-size: 28px;
+            color: #38bdf8;
+            margin: 20px 0;
+            font-weight: bold;
+        }
+        .btn {
+            background-color: #22c55e;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-weight: bold;
+            display: none;
         }
     </style>
 </head>
 <body>
 
-    <h2>🔥 Please wait while your ad loads...</h2>
-    <p>Your download will unlock in a moment.</p>
-    <div class="timer" id="countdown">15</div>
+    <div class="container">
+        <h2>🔥 Sponsored Ad</h2>
+        <p>Please wait 15 seconds to unlock your free download pass.</p>
+        <div class="timer" id="countdown">15</div>
+        <button class="btn" id="claim-btn" onclick="returnToBot()">Click to get reward & return!</button>
+    </div>
 
-    <!-- Telegram Web App SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <script>
         let tg = window.Telegram.WebApp;
         tg.expand();
 
         let timeLeft = 15;
-        let countdownTimer = setInterval(function() {
+        let timerDisplay = document.getElementById("countdown");
+        let claimBtn = document.getElementById("claim-btn");
+
+        let downloadTimer = setInterval(function() {
             timeLeft--;
-            document.getElementById("countdown").innerText = timeLeft;
-            
+            timerDisplay.innerText = timeLeft;
             if (timeLeft <= 0) {
-                clearInterval(countdownTimer);
-                // Send signal back to bot and close window automatically!
-                tg.sendData("watched");
-                tg.close();
+                clearInterval(downloadTimer);
+                timerDisplay.style.display = "none";
+                claimBtn.style.display = "block";
             }
         }, 1000);
+
+        function returnToBot() {
+            tg.sendData("watched");
+            tg.close();
+        }
     </script>
 </body>
 </html>
