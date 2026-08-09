@@ -1,4 +1,3 @@
-
 import time
 import sqlite3
 import requests
@@ -13,6 +12,15 @@ DB_FILE = "bot_data.db"
 ADMIN_ID = 123456789  # ⚠️ Replace with your actual Telegram User ID
 
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# Helper function to create colored buttons using Bot API 8.0 style parameter
+def c_btn(text, callback_data=None, web_app=None, style=None):
+    btn_dict = {}
+    if text: btn_dict['text'] = text
+    if callback_data: btn_dict['callback_data'] = callback_data
+    if web_app: btn_dict['web_app'] = web_app
+    if style: btn_dict['style'] = style  # 'primary' (blue), 'success' (green), 'danger' (red)
+    return InlineKeyboardButton.de_json(btn_dict)
 
 # ----------------------------------------------------
 # DATABASE INITIALIZATION & HELPERS
@@ -75,7 +83,6 @@ def admin_broadcast(message):
     if message.from_user.id != ADMIN_ID:
         return
 
-    # Extract message after /broadcast
     command_parts = message.text.split(maxsplit=1)
     if len(command_parts) < 2:
         bot.reply_to(message, "⚠️ **Usage:** `/broadcast Your message here`", parse_mode="Markdown")
@@ -97,7 +104,7 @@ def admin_broadcast(message):
         try:
             bot.send_message(user_id, broadcast_msg, parse_mode="Markdown")
             success_count += 1
-            time.sleep(0.05)  # Prevent hitting API rate limits
+            time.sleep(0.05)
         except Exception:
             fail_count += 1
 
@@ -129,7 +136,7 @@ def send_start(message):
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
+    markup.add(c_btn(btn_lang, callback_data="/btn_lang", style="primary"))
     bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -141,11 +148,11 @@ def handle_language(call):
     if call.data == '/btn_lang':
         markup = InlineKeyboardMarkup()
         markup.row(
-            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
-            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
+            c_btn("🇬🇧 English", callback_data="/lang_en", style="primary"),
+            c_btn("🇪🇹 አማርኛ", callback_data="/lang_am", style="primary")
         )
-        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.row(c_btn("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
+        markup.row(c_btn("🏠 Main Menu", callback_data="/btn_home", style="danger"))
         bot.edit_message_text("🌐 **Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
@@ -157,7 +164,7 @@ def handle_language(call):
             confirm_text = "✅ Afaan gara **Afaan Oromotti** jijjiirameera."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(c_btn("🏠 Main Menu", callback_data="/btn_home", style="primary"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -186,9 +193,9 @@ def handle_tiktok_link(message):
             b_ad, b_prem = "👉 Watch ad (15s)", "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL)))
-        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(c_btn(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="success"))
+        markup.add(c_btn(b_prem, callback_data="/buy_premium", style="primary"))
+        markup.add(c_btn("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
@@ -206,10 +213,10 @@ def send_quality_options(chat_id, lang):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(c_btn(b_no_wm, callback_data="quality_nowatermark", style="success"))
+    markup.add(c_btn(b_wm, callback_data="quality_watermark", style="primary"))
+    markup.add(c_btn(b_au, callback_data="quality_audio", style="primary"))
+    markup.add(c_btn("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
@@ -239,10 +246,10 @@ def handle_premium_menu(call):
         return
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50"))
-    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105"))
-    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(c_btn("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="primary"))
+    markup.add(c_btn("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="success"))
+    markup.add(c_btn("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary"))
+    markup.add(c_btn("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     msg = (
         "🚫 **Remove ads**\n\n"
@@ -346,7 +353,7 @@ def handle_download(call):
 
             if download_url:
                 markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+                markup.add(c_btn("🏠 Main Menu", callback_data="/btn_home", style="primary"))
 
                 if quality == 'audio':
                     bot.send_audio(
@@ -369,5 +376,6 @@ def handle_download(call):
     except Exception:
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-print("Bot running with SQLite Broadcast & Stats feature...")
+print("Bot running with Button Styles, SQLite Broadcast & Stats feature...")
 bot.infinity_polling()
+           
