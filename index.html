@@ -1,57 +1,57 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Watch Ad to Download</title>
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
-  
-  <!-- Replace this line with your official Monetag SDK Script -->
-  <script src="https://alwingulla.com/88/tag.min.js" data-zone="YOUR_MONETAG_ZONE_ID" async data-cfasync="false"></script>
-  
-  <style>
-    body {
-      background-color: #17212b;
-      color: #ffffff;
-      font-family: sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      text-align: center;
-    }
-    .btn {
-      background-color: #2481cc;
-      color: white;
-      padding: 15px 30px;
-      font-size: 18px;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-      width: 80%;
-      margin-top: 20px;
-      font-weight: bold;
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TikTok Downloader Ad</title>
+    <!-- 1. Include Telegram WebApp JS SDK -->
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            background-color: #0f172a;
+            color: #ffffff;
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            margin: 0;
+        }
+        h2 { margin-bottom: 10px; }
+        p { color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
+        button {
+            background-color: #2563eb;
+            color: white;
+            border: none;
+            padding: 14px 28px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 80%;
+            max-width: 300px;
+        }
+        button:active { background-color: #1d4ed8; }
+    </style>
 </head>
 <body>
 
-  <h2>Watch Ad to Download Video</h2>
-  <p>Click below to complete verification and get your video:</p>
+    <h2>Watch Ad to Download Video</h2>
+    <p>Click below to complete verification and get your video:</p>
+    
+    <!-- 2. The Continue Button that sends the signal back to Telegram -->
+    <button id="continue-btn">Continue</button>
 
-  <button class="btn" onclick="completeAd()">Continue</button>
+    <script>
+        // Initialize Telegram WebApp
+        const tg = window.Telegram.WebApp;
+        tg.ready();
 
-  <script>
-    const tg = window.Telegram.WebApp;
-    tg.expand();
-
-    function completeAd() {
-      // Sends completion signal back to your Python bot
-      tg.sendData("AD_COMPLETED");
-      tg.close();
-    }
-  </script>
+        document.getElementById("continue-btn").addEventListener("click", function() {
+            // Send data back to the bot and close the WebApp window
+            tg.sendData("AD_COMPLETED");
+        });
+    </script>
 </body>
 </html>
