@@ -1,4 +1,6 @@
+
 import time
+import sqlite3
 import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
@@ -7,17 +9,105 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo
 BOT_TOKEN = "8913902406:AAE5YB6XyXY4JBXbODODwOTl4P-dnV7T2rA"
 API_URL = "https://silent-mud-7026.codeofsaladin.workers.dev/tiktok"
 WEB_APP_URL = "https://ayanafikadu9-code.github.io/TikTok-Downloader/"
+DB_FILE = "bot_data.db"
+ADMIN_ID = 123456789  # ⚠️ Replace with your actual Telegram User ID
 
 bot = telebot.TeleBot(BOT_TOKEN)
-user_data = {}
 
-def get_user_attr(user_id, key, default=None):
-    return user_data.get(user_id, {}).get(key, default)
+# ----------------------------------------------------
+# DATABASE INITIALIZATION & HELPERS
+# ----------------------------------------------------
+def init_db():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            user_id INTEGER PRIMARY KEY,
+            lang TEXT DEFAULT 'en',
+            ad_pass_expiry INTEGER DEFAULT 0,
+            tiktok_url TEXT DEFAULT ''
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+def get_user_data(user_id):
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT lang, ad_pass_expiry, tiktok_url FROM users WHERE user_id = ?', (user_id,))
+    row = cursor.fetchone()
+    conn.close()
+    if row:
+        return {"lang": row[0], "ad_pass_expiry": row[1], "tiktok_url": row[2]}
+    return {"lang": "en", "ad_pass_expiry": 0, "tiktok_url": ""}
 
 def set_user_attr(user_id, key, value):
-    if user_id not in user_data:
-        user_data[user_id] = {}
-    user_data[user_id][key] = value
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('INSERT OR IGNORE INTO users (user_id) VALUES (?)', (user_id,))
+    cursor.execute(f'UPDATE users SET {key} = ? WHERE user_id = ?', (value, user_id))
+    conn.commit()
+    conn.close()
+
+def get_all_user_ids():
+    conn = sqlite3.connect(DB_FILE)
+    cursor = conn.cursor()
+    cursor.execute('SELECT user_id FROM users')
+    rows = cursor.fetchall()
+    conn.close()
+    return [row[0] for row in rows]
+
+init_db()
+
+# ----------------------------------------------------
+# ADMIN COMMANDS (STATS & BROADCAST)
+# ----------------------------------------------------
+@bot.message_handler(commands=['stats'])
+def admin_stats(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+    
+    users = get_all_user_ids()
+    bot.reply_to(message, f"📊 **Bot Database Stats:**\n\nTotal Registered Users: **{len(users)}**", parse_mode="Markdown")
+
+@bot.message_handler(commands=['broadcast'])
+def admin_broadcast(message):
+    if message.from_user.id != ADMIN_ID:
+        return
+
+    # Extract message after /broadcast
+    command_parts = message.text.split(maxsplit=1)
+    if len(command_parts) < 2:
+        bot.reply_to(message, "⚠️ **Usage:** `/broadcast Your message here`", parse_mode="Markdown")
+        return
+
+    broadcast_msg = command_parts[1]
+    all_users = get_all_user_ids()
+    
+    if not all_users:
+        bot.reply_to(message, "❌ No users found in the database.")
+        return
+
+    status_msg = bot.reply_to(message, f"🚀 **Starting Broadcast to {len(all_users)} users...**", parse_mode="Markdown")
+    
+    success_count = 0
+    fail_count = 0
+
+    for user_id in all_users:
+        try:
+            bot.send_message(user_id, broadcast_msg, parse_mode="Markdown")
+            success_count += 1
+            time.sleep(0.05)  # Prevent hitting API rate limits
+        except Exception:
+            fail_count += 1
+
+    report = (
+        f"📢 **Broadcast Completed!**\n\n"
+        f"✅ Successfully Delivered: **{success_count}**\n"
+        f"❌ Failed (Blocked/Deleted): **{fail_count}**\n"
+        f"👥 Total Targeted: **{len(all_users)}**"
+    )
+    bot.edit_message_text(report, status_msg.chat.id, status_msg.message_id, parse_mode="Markdown")
 
 # ----------------------------------------------------
 # 1. COMMAND: /start
@@ -25,7 +115,8 @@ def set_user_attr(user_id, key, value):
 @bot.message_handler(commands=['start'])
 def send_start(message):
     u_id = message.from_user.id
-    lang = get_user_attr(u_id, "lang", "en")
+    u_data = get_user_data(u_id)
+    lang = u_data["lang"]
 
     if lang == "am":
         text_msg = "🎬 **እንኳን ወደ TikTok ማውረጃ በደህና መጡ!**\n\nቪዲዮ ለማውረድ የ TikTok ሊንክ ይላኩ።"
@@ -38,11 +129,11 @@ def send_start(message):
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang", style="primary"))
+    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
     bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 2. LANGUAGE SELECTION MENU (Colored Buttons)
+# 2. LANGUAGE SELECTION MENU
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data in ['/btn_lang', '/lang_en', '/lang_am', '/lang_om'])
 def handle_language(call):
@@ -50,11 +141,11 @@ def handle_language(call):
     if call.data == '/btn_lang':
         markup = InlineKeyboardMarkup()
         markup.row(
-            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en", style="primary"),
-            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am", style="primary")
+            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
+            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
         )
-        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
         bot.edit_message_text("🌐 **Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
@@ -66,11 +157,11 @@ def handle_language(call):
             confirm_text = "✅ Afaan gara **Afaan Oromotti** jijjiirameera."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="success"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 3. LINK DETECTION (AD GATE & 15s TIMER)
+# 3. LINK DETECTION (AD GATE & ACCESS CHECK)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: 'tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower())
 def handle_tiktok_link(message):
@@ -78,8 +169,9 @@ def handle_tiktok_link(message):
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
     
-    lang = get_user_attr(u_id, "lang", "en")
-    expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
+    u_data = get_user_data(u_id)
+    lang = u_data["lang"]
+    expiry_time = u_data["ad_pass_expiry"]
     has_active_pass = current_time < expiry_time
 
     if not has_active_pass:
@@ -94,9 +186,9 @@ def handle_tiktok_link(message):
             b_ad, b_prem = "👉 Watch ad (15s)", "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="success"))
-        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL)))
+        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
@@ -114,10 +206,10 @@ def send_quality_options(chat_id, lang):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
@@ -132,7 +224,8 @@ def handle_ad_completion(message):
     if message.web_app_data.data == "AD_COMPLETED":
         set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
         
-        lang = get_user_attr(u_id, "lang", "en")
+        u_data = get_user_data(u_id)
+        lang = u_data["lang"]
         bot.send_message(message.chat.id, "✅ **Ad verified! 24-Hour Pass Unlocked.**")
         send_quality_options(message.chat.id, lang)
 
@@ -141,16 +234,15 @@ def handle_ad_completion(message):
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data in ['/buy_premium', '/btn_home'])
 def handle_premium_menu(call):
-    u_id = call.from_user.id
     if call.data == '/btn_home':
         send_start(call.message)
         return
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="success"))
-    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="primary"))
-    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50"))
+    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105"))
+    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
     msg = (
         "🚫 **Remove ads**\n\n"
@@ -214,7 +306,8 @@ def handle_successful_payment(message):
 def handle_download(call):
     u_id = call.from_user.id
     quality = call.data.replace('quality_', '')
-    url = get_user_attr(u_id, "tiktok_url")
+    u_data = get_user_data(u_id)
+    url = u_data["tiktok_url"]
 
     if not url:
         bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
@@ -253,7 +346,7 @@ def handle_download(call):
 
             if download_url:
                 markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="primary"))
+                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
                 if quality == 'audio':
                     bot.send_audio(
@@ -276,5 +369,5 @@ def handle_download(call):
     except Exception:
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-print("Bot is starting...")
+print("Bot running with SQLite Broadcast & Stats feature...")
 bot.infinity_polling()
