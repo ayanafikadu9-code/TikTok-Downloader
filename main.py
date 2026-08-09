@@ -1,4 +1,3 @@
-‍‍‍Ἀνίκητος:
 import time
 import requests
 import telebot
@@ -29,13 +28,13 @@ def send_start(message):
     lang = get_user_attr(u_id, "lang", "en")
 
     if lang == "am":
-        text_msg = "🎬 እንኳን ወደ TikTok ማውረጃ በደህና መጡ!\n\nቪዲዮ ለማውረድ የ TikTok ሊንክ ይላኩ።"
+        text_msg = "🎬 **እንኳን ወደ TikTok ማውረጃ በደህና መጡ!**\n\nቪዲዮ ለማውረድ የ TikTok ሊንክ ይላኩ።"
         btn_lang = "🌐 ቋንቋ ለመቀየር"
     elif lang == "om":
-        text_msg = "🎬 Baga gara Buufata TikTok Nageenyaan Dhuftan!\n\nViidiyoo buufachuuf hidhaa TikTok ergaa."
+        text_msg = "🎬 **Baga gara Buufata TikTok Nageenyaan Dhuftan!**\n\nViidiyoo buufachuuf hidhaa TikTok ergaa."
         btn_lang = "🌐 Afaan Jijjiiruuf"
     else:
-        text_msg = "🎬 Welcome to TikTok Downloader Bot!\n\nSend any TikTok link below to start."
+        text_msg = "🎬 **Welcome to TikTok Downloader Bot!**\n\nSend any TikTok link below to start."
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
@@ -56,15 +55,15 @@ def handle_language(call):
         )
         markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
         markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
-        bot.edit_message_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+        bot.edit_message_text("🌐 **Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
         set_user_attr(u_id, "lang", selected_lang)
-        confirm_text = "✅ Language set to English."
+        confirm_text = "✅ Language set to **English**."
         if selected_lang == "am":
-            confirm_text = "✅ ቋንቋው በሁኔታው ወደ አማርኛ ተቀይሯል።"
+            confirm_text = "✅ ቋንቋው በሁኔታው ወደ **አማርኛ** ተቀይሯል።"
         elif selected_lang == "om":
-            confirm_text = "✅ Afaan gara Afaan Oromotti jijjiirameera."
+            confirm_text = "✅ Afaan gara **Afaan Oromotti** jijjiirameera."
 
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
@@ -84,15 +83,14 @@ def handle_tiktok_link(message):
     has_active_pass = current_time < expiry_time
 
     if not has_active_pass:
-
-if lang == "am":
-            gate_msg = "🔥 ቪዲዮ ለማውረድ ማስታወቂያ ይመልከቱ ወይም ፕሪሚየም ይግዙ:"
+        if lang == "am":
+            gate_msg = "🔥 **ቪዲዮ ለማውረድ ማስታወቂያ ይመልከቱ ወይም ፕሪሚየም ይግዙ:**"
             b_ad, b_prem = "👁️ ማስታወቂያ ይመልከቱ (10s)", "⭐ ፕሪሚየም ይግዙ (Telegram Stars)"
         elif lang == "om":
-            gate_msg = "🔥 Viidiyoo buufachuuf beeksisa daawwadhaa ykn piriimiyamii bitaa:"
+            gate_msg = "🔥 **Viidiyoo buufachuuf beeksisa daawwadhaa ykn piriimiyamii bitaa:**"
             b_ad, b_prem = "👁️ Beeksisa Daawwadhaa (10s)", "⭐ Piriimiyamii Bitaa (Telegram Stars)"
         else:
-            gate_msg = "🔥 To continue, watch a short ad or buy Premium:"
+            gate_msg = "🔥 **To continue, watch a short ad or buy Premium:**"
             b_ad, b_prem = "👉 Watch ad", "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
@@ -106,13 +104,13 @@ if lang == "am":
 
 def send_quality_options(chat_id, lang):
     if lang == "am":
-        prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
+        prompt_text = "🎥 **የማውረድ አማራጭ ይምረጡ:**"
         b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
     elif lang == "om":
-        prompt_text = "🎥 Filannoo buufata filadhaa:"
+        prompt_text = "🎥 **Filannoo buufata filadhaa:**"
         b_no_wm, b_wm, b_au = "🎬 Viidiyoo (Mallattoo Malee)", "🏷️ Viidiyoo (Mallattoo Wajjin)", "🎵 Sagalee Qofa (MP3)"
     else:
-        prompt_text = "🎥 Choose download option:"
+        prompt_text = "🎥 **Choose download option:**"
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
@@ -135,7 +133,7 @@ def handle_ad_completion(message):
         set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
         
         lang = get_user_attr(u_id, "lang", "en")
-        bot.send_message(message.chat.id, "✅ Ad verified! 24-Hour Pass Unlocked.")
+        bot.send_message(message.chat.id, "✅ **Ad verified! 24-Hour Pass Unlocked.**")
         send_quality_options(message.chat.id, lang)
 
 # ----------------------------------------------------
@@ -155,9 +153,9 @@ def handle_premium_menu(call):
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
     msg = (
-        "🚫 Remove ads\n\n"
+        "🚫 **Remove ads**\n\n"
         "Download videos without mandatory ads or waiting.\n\n"
-        "Premium includes:\n"
+        "**Premium includes:**\n"
         "✅ No ads before downloads\n"
         "✅ High-speed direct servers\n"
         "✅ Priority support\n\n"
@@ -205,7 +203,7 @@ def handle_successful_payment(message):
 
     bot.send_message(
         message.chat.id, 
-        f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days. Enjoy ad-free downloading!",
+        f"🎉 **Payment Received!**\n\nYour Premium Subscription is now active for **{days} days**. Enjoy ad-free downloading!",
         parse_mode="Markdown"
     )
 
@@ -222,7 +220,7 @@ def handle_download(call):
         bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
         return
 
-    bot.edit_message_text("⏳ Processing your request...", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ **Processing your request...**", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
     try:
         resp = requests.get(f"{API_URL}?url={url}", timeout=15)
@@ -259,9 +257,8 @@ def handle_download(call):
 
                 if quality == 'audio':
                     bot.send_audio(
-                        call.message.chat.id,
-
-audio=download_url, 
+                        call.message.chat.id, 
+                        audio=download_url, 
                         title="TikTok Audio Stream", 
                         performer="MakeChapa Bot"
                     )
@@ -271,7 +268,7 @@ audio=download_url,
                         video=download_url
                     )
 
-                bot.edit_message_text("✅ Download Complete!", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+                bot.edit_message_text("✅ **Download Complete!**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
             else:
                 bot.edit_message_text("❌ Could not extract download link.", call.message.chat.id, call.message.message_id)
         else:
