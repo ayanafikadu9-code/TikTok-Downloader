@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader - Ad Verification</title>
+    <title>TikTok Downloader</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -33,7 +33,7 @@
             font-size: 14px;
             margin-bottom: 30px;
         }
-        .timer-box {
+        .timer {
             font-size: 48px;
             font-weight: bold;
             color: var(--tg-theme-button-color, #2481cc);
@@ -51,20 +51,15 @@
             cursor: pointer;
             display: none;
         }
-        .btn:active {
-            opacity: 0.8;
-        }
     </style>
 </head>
 <body>
 
     <div class="container">
         <h2>Ad Verification</h2>
-        <p>Please wait a moment while your ad verification loads to unlock your TikTok download.</p>
-        
-        <div class="timer-box" id="timer">10</div>
-        
-        <button class="btn" id="claimBtn" onclick="completeAd()">Continue to Bot</button>
+        <p>Please wait while the verification completes to unlock your TikTok video.</p>
+        <div class="timer" id="count">10</div>
+        <button class="btn" id="doneBtn" onclick="finishTask()">Continue</button>
     </div>
 
     <script>
@@ -73,22 +68,21 @@
         tg.expand();
 
         let timeLeft = 10;
-        const timerElement = document.getElementById('timer');
-        const claimBtn = document.getElementById('claimBtn');
+        const countEl = document.getElementById('count');
+        const doneBtn = document.getElementById('doneBtn');
 
-        const countdown = setInterval(() => {
+        const timer = setInterval(() => {
             timeLeft--;
-            timerElement.textContent = timeLeft;
+            countEl.textContent = timeLeft;
 
             if (timeLeft <= 0) {
-                clearInterval(countdown);
-                timerElement.style.display = 'none';
-                claimBtn.style.display = 'block';
+                clearInterval(timer);
+                countEl.style.display = 'none';
+                doneBtn.style.display = 'block';
             }
         }, 1000);
 
-        function completeAd() {
-            // Send verification signal back to the Telegram Bot
+        function finishTask() {
             tg.sendData("AD_COMPLETED");
         }
     </script>
