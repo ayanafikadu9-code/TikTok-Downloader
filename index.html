@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TikTok Downloader Ad</title>
-    <!-- 1. Include Telegram WebApp JS SDK -->
+    <!-- Include Telegram WebApp SDK -->
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -17,8 +17,10 @@
             justify-content: center;
             height: 100vh;
             margin: 0;
+            text-align: center;
+            padding: 20px;
         }
-        h2 { margin-bottom: 10px; }
+        h2 { margin-bottom: 10px; font-size: 22px; }
         p { color: #94a3b8; font-size: 14px; margin-bottom: 30px; }
         button {
             background-color: #2563eb;
@@ -29,28 +31,56 @@
             font-weight: bold;
             border-radius: 8px;
             cursor: pointer;
-            width: 80%;
+            width: 100%;
             max-width: 300px;
+            transition: background-color 0.2s;
         }
-        button:active { background-color: #1d4ed8; }
+        button:disabled {
+            background-color: #334155;
+            color: #64748b;
+            cursor: not-allowed;
+        }
+        button:not(:disabled):active { background-color: #1d4ed8; }
     </style>
 </head>
 <body>
 
-    <h2>Watch Ad to Download Video</h2>
-    <p>Click below to complete verification and get your video:</p>
+    <h2 id="title">Watch Ad to Download Video</h2>
+    <p id="desc">Please wait <span id="countdown">15</span> seconds to unlock your video...</p>
     
-    <!-- 2. The Continue Button that sends the signal back to Telegram -->
-    <button id="continue-btn">Continue</button>
+    <!-- Continue Button (Disabled until timer finishes) -->
+    <button id="continue-btn" disabled>Please wait...</button>
 
     <script>
         // Initialize Telegram WebApp
         const tg = window.Telegram.WebApp;
         tg.ready();
+        tg.expand();
 
-        document.getElementById("continue-btn").addEventListener("click", function() {
-            // Send data back to the bot and close the WebApp window
-            tg.sendData("AD_COMPLETED");
+        let timeLeft = 15;
+        const countdownEl = document.getElementById("countdown");
+        const continueBtn = document.getElementById("continue-btn");
+        const descEl = document.getElementById("desc");
+
+        // 15-second countdown timer loop
+        const timer = setInterval(() => {
+            timeLeft--;
+            countdownEl.textContent = timeLeft;
+            
+            if (timeLeft <= 0) {
+                clearInterval(timer);
+                descEl.textContent = "Click below to complete verification and get your video:";
+                continueBtn.textContent = "Continue";
+                continueBtn.disabled = false;
+            }
+        }, 1000);
+
+        // When user clicks Continue after the timer finishes
+        continueBtn.addEventListener("click", function() {
+            if (!continueBtn.disabled) {
+                // Send signal back to Python bot and close web app
+                tg.sendData("AD_COMPLETED");
+            }
         });
     </script>
 </body>
