@@ -173,11 +173,11 @@ async def handle_tiktok_link(message: types.Message):
             b_ad, b_verify, b_prem = "👁️ Beeksisa Daawwadhaa (15s)", "✅ Beeksisa Daawwadhiree (Mirkaneessi)", "⭐ Piriimiyamii Bitaa (Telegram Stars)"
         else:
             gate_msg = "🔥 **To continue, watch a short ad or buy Premium:**"
-            b_ad, b_verify, b_prem = "👉 Watch ad (15s)", "✅ I Watched the Ad (Verify)", "⭐ Buy Premium"
+            b_ad, b_verify, b_prem = "👉 Watch ad (15s)", "✅ I Watched the Ad (Get Video)", "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="success")],
-            [InlineKeyboardButton(text=b_verify, callback_data="/check_ad_pass", style="primary")],
+            [InlineKeyboardButton(text=b_verify, callback_data="/check_ad_pass", style="success")],
             [InlineKeyboardButton(text=b_prem, callback_data="/buy_premium", style="primary")],
             [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="danger")]
         ])
@@ -205,7 +205,7 @@ async def send_quality_options(chat_id, lang):
     await bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# WEB APP AD COMPLETION & MANUAL VERIFICATION
+# WEB APP AD COMPLETION & MANUAL VERIFICATION BUTTON
 # ----------------------------------------------------
 @dp.message(F.web_app_data)
 async def handle_ad_completion(message: types.Message):
@@ -221,7 +221,7 @@ async def handle_manual_ad_check(call: types.CallbackQuery):
     u_id = call.from_user.id
     set_user_attr(u_id, "ad_pass_expiry", int(time.time()) + 86400)
     u_data = get_user_data(u_id)
-    await call.message.edit_text("✅ **Ad pass unlocked! Select download quality below:**", parse_mode="Markdown")
+    await call.message.edit_text("✅ **Ad verified successfully! Select your download option below:**", parse_mode="Markdown")
     await send_quality_options(call.message.chat.id, u_data["lang"])
 
 @dp.callback_query(F.data.in_(['/buy_premium', '/btn_home']))
@@ -328,8 +328,9 @@ async def handle_download(call: types.CallbackQuery):
             await call.message.edit_text("❌ Connection error while downloading.")
 
 async def main():
-    print("Bot running with manual check button and native aiogram v3 colors...")
+    print("Bot running with manual verification button...")
     await dp.start_polling(bot)
 
 if __name__ == "__main__":
     asyncio.run(main())
+            
