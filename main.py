@@ -42,7 +42,7 @@ def send_start(message):
     bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 2. LANGUAGE SELECTION MENU
+# 2. LANGUAGE SELECTION MENU (Colored Buttons)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data in ['/btn_lang', '/lang_en', '/lang_am', '/lang_om'])
 def handle_language(call):
@@ -54,7 +54,7 @@ def handle_language(call):
             InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am", style="primary")
         )
         markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
         bot.edit_message_text("🌐 **Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:**", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
@@ -66,11 +66,11 @@ def handle_language(call):
             confirm_text = "✅ Afaan gara **Afaan Oromotti** jijjiirameera."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="primary"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="success"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 3. LINK DETECTION (AD GATE & PREMIUM MENU)
+# 3. LINK DETECTION (AD GATE & 15s TIMER)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: 'tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower())
 def handle_tiktok_link(message):
@@ -85,18 +85,18 @@ def handle_tiktok_link(message):
     if not has_active_pass:
         if lang == "am":
             gate_msg = "🔥 **ቪዲዮ ለማውረድ ማስታወቂያ ይመልከቱ ወይም ፕሪሚየም ይግዙ:**"
-            b_ad, b_prem = "👁️ ማስታወቂያ ይመልከቱ (10s)", "⭐ ፕሪሚየም ይግዙ (Telegram Stars)"
+            b_ad, b_prem = "👁️ ማስታወቂያ ይመልከቱ (15s)", "⭐ ፕሪሚየም ይግዙ (Telegram Stars)"
         elif lang == "om":
             gate_msg = "🔥 **Viidiyoo buufachuuf beeksisa daawwadhaa ykn piriimiyamii bitaa:**"
-            b_ad, b_prem = "👁️ Beeksisa Daawwadhaa (10s)", "⭐ Piriimiyamii Bitaa (Telegram Stars)"
+            b_ad, b_prem = "👁️ Beeksisa Daawwadhaa (15s)", "⭐ Piriimiyamii Bitaa (Telegram Stars)"
         else:
             gate_msg = "🔥 **To continue, watch a short ad or buy Premium:**"
-            b_ad, b_prem = "👉 Watch ad", "⭐ Buy Premium"
+            b_ad, b_prem = "👉 Watch ad (15s)", "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="primary"))
+        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="success"))
         markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
@@ -114,10 +114,10 @@ def send_quality_options(chat_id, lang):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="primary"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
@@ -137,7 +137,7 @@ def handle_ad_completion(message):
         send_quality_options(message.chat.id, lang)
 
 # ----------------------------------------------------
-# 5. TELEGRAM STARS PREMIUM MENU & INVOICING (30% DISCOUNT)
+# 5. TELEGRAM STARS PREMIUM MENU & INVOICING
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data in ['/buy_premium', '/btn_home'])
 def handle_premium_menu(call):
@@ -147,10 +147,10 @@ def handle_premium_menu(call):
         return
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="primary"))
+    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="success"))
     markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="primary"))
     markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     msg = (
         "🚫 **Remove ads**\n\n"
@@ -172,7 +172,7 @@ def send_star_invoice(call):
     title = "TikTok Downloader Premium"
     description = f"Unlock {days} days of ad-free unlimited TikTok downloads."
     payload = f"premium_{days}_{call.from_user.id}"
-    currency = "XTR"  # XTR is the official code for Telegram Stars
+    currency = "XTR"
     prices = [LabeledPrice(label=f"Premium ({days} Days)", amount=stars)]
 
     bot.send_invoice(
@@ -180,7 +180,7 @@ def send_star_invoice(call):
         title=title,
         description=description,
         invoice_payload=payload,
-        provider_token="",  # Must remain empty for Telegram Stars
+        provider_token="",
         currency=currency,
         prices=prices,
         start_parameter="premium-subscription"
@@ -208,7 +208,7 @@ def handle_successful_payment(message):
     )
 
 # ----------------------------------------------------
-# 6. EXECUTE DOWNLOAD (DIRECT TELEGRAM STREAMING)
+# 6. EXECUTE DOWNLOAD
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data.startswith('quality_'))
 def handle_download(call):
@@ -278,4 +278,3 @@ def handle_download(call):
 
 print("Bot is starting...")
 bot.infinity_polling()
-
