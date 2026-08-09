@@ -18,9 +18,6 @@ def set_user_attr(user_id, key, value):
         user_data[user_id] = {}
     user_data[user_id][key] = value
 
-# ----------------------------------------------------
-# 1. COMMAND: /start
-# ----------------------------------------------------
 @dp.message(Command("start"))
 async def send_start(message: types.Message):
     u_id = message.from_user.id
@@ -41,9 +38,6 @@ async def send_start(message: types.Message):
     ])
     await message.answer(text_msg, reply_markup=markup, parse_mode="Markdown")
 
-# ----------------------------------------------------
-# 2. LANGUAGE SELECTION MENU
-# ----------------------------------------------------
 @dp.callback_query(F.data.in_(['/btn_lang', '/lang_en', '/lang_am', '/lang_om', '/btn_home']))
 async def handle_language(call: types.CallbackQuery):
     u_id = call.from_user.id
@@ -75,9 +69,6 @@ async def handle_language(call: types.CallbackQuery):
         ])
         await call.message.edit_text(confirm_text, reply_markup=markup, parse_mode="Markdown")
 
-# ----------------------------------------------------
-# 3. LINK DETECTION (AD GATE WITH FANA ADS COLORS)
-# ----------------------------------------------------
 @dp.message(F.text & (F.text.contains("tiktok.com") | F.text.contains("vt.tiktok.com")))
 async def handle_tiktok_link(message: types.Message):
     u_id = message.from_user.id
@@ -105,7 +96,6 @@ async def handle_tiktok_link(message: types.Message):
             b_verify = "✅ I have watched the ad"
             b_prem = "⭐ Buy Premium"
 
-        # Styled buttons: Red (danger), Green (success), Blue (primary)
         markup = InlineKeyboardMarkup(inline_keyboard=[
             [InlineKeyboardButton(text=b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger")],
             [InlineKeyboardButton(text=b_verify, callback_data="/verify_ad", style="success")],
@@ -116,9 +106,6 @@ async def handle_tiktok_link(message: types.Message):
     else:
         await send_quality_options(message.chat.id, lang)
 
-# ----------------------------------------------------
-# 4. MANUAL AD VERIFICATION BUTTON HANDLER
-# ----------------------------------------------------
 @dp.callback_query(F.data == '/verify_ad')
 async def handle_verify_ad(call: types.CallbackQuery):
     u_id = call.from_user.id
@@ -148,9 +135,6 @@ async def send_quality_options(chat_id, lang):
     ])
     await bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
-# ----------------------------------------------------
-# 5. TELEGRAM STARS PREMIUM MENU & INVOICING
-# ----------------------------------------------------
 @dp.callback_query(F.data == '/buy_premium')
 async def handle_premium_menu(call: types.CallbackQuery):
     markup = InlineKeyboardMarkup(inline_keyboard=[
@@ -199,9 +183,6 @@ async def handle_successful_payment(message: types.Message):
     set_user_attr(u_id, "ad_pass_expiry", int(time.time()) + (days * 86400))
     await message.answer(f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days.", parse_mode="Markdown")
 
-# ----------------------------------------------------
-# 6. EXECUTE DOWNLOAD
-# ----------------------------------------------------
 @dp.callback_query(F.data.startswith('quality_'))
 async def handle_download(call: types.CallbackQuery):
     u_id = call.from_user.id
