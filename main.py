@@ -74,7 +74,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
-# 3. LINK DETECTION (AD GATE & PREMIUM MENU)
+# 3. LINK DETECTION (AD GATE WITH RED & GREEN BUTTONS)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -88,23 +88,61 @@ def handle_tiktok_link(message):
 
     if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ቪዲዮ ለማውረድ ማስታወቂያ ይመልከቱ ወይም ፕሪሚየም ይግዙ:"
-            b_ad, b_prem = "👁️ ማስታወቂያ ይመልከቱ (10s)", "⭐ ፕሪሚየም ይግዙ (Telegram Stars)"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (10 ሰንደንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
+            b_ad = "👁️ ማስታወቂያ ይመልከቱ (10s)"
+            b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
+            b_prem = "⭐ ፕሪሚየም ይግዙ"
         elif lang == "om":
-            gate_msg = "🔥 Viidiyoo buufachuuf beeksisa daawwadhaa ykn piriimiyamii bitaa:"
-            b_ad, b_prem = "👁️ Beeksisa Daawwadhaa (10s)", "⭐ Piriimiyamii Bitaa (Telegram Stars)"
+            gate_msg = "🔥 Sa'atii 24 ffaaf viidiyoo 10,000 bilisaan buufadhaa!"
+            b_ad = "👁️ Beeksisa Daawwadhaa (10s)"
+            b_verify = "✅ Beeksisa Ilaaleera"
+            b_prem = "⭐ Piriimiyamii Bitaa"
         else:
-            gate_msg = "🔥 To continue, watch a short ad or buy Premium:"
-            b_ad, b_prem = "👉 Watch ad", "⭐ Buy Premium"
+            gate_msg = "🔥 Watch an ad or get Premium to unlock downloads:"
+            b_ad = "👁️ Watch ad (10s)"
+            b_verify = "✅ I have watched the ad"
+            b_prem = "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
         markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL)))
+        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad"))
         markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
         markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
         send_quality_options(message.chat.id, lang)
+
+# ----------------------------------------------------
+# 4. MANUAL AD VERIFICATION BUTTON HANDLER
+# ----------------------------------------------------
+@bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
+def handle_verify_ad(call):
+    u_id = call.from_user.id
+    current_time = int(time.time())
+    # Grant 24-hour pass upon clicking the confirmation button
+    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
+    
+    lang = get_user_attr(u_id, "lang", "en")
+    bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
+    
+    if lang == "am":
+        prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
+        b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
+    elif lang == "om":
+        prompt_text = "🎥 Filannoo buufata filadhaa:"
+        b_no_wm, b_wm, b_au = "🎬 Viidiyoo (Mallattoo Malee)", "🏷️ Viidiyoo (Mallattoo Wajjin)", "🎵 Sagalee Qofa (MP3)"
+    else:
+        prompt_text = "🎥 Choose download option:"
+        b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
+
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+
+    bot.edit_message_text(prompt_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 def send_quality_options(chat_id, lang):
     if lang == "am":
@@ -124,21 +162,6 @@ def send_quality_options(chat_id, lang):
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
-
-# ----------------------------------------------------
-# 4. WEB APP AD COMPLETION CALLBACK
-# ----------------------------------------------------
-@bot.message_handler(content_types=['web_app_data'])
-def handle_ad_completion(message):
-    u_id = message.from_user.id
-    current_time = int(time.time())
-    
-    if message.web_app_data.data == "AD_COMPLETED":
-        set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
-        
-        lang = get_user_attr(u_id, "lang", "en")
-        bot.send_message(message.chat.id, "✅ Ad verified! 24-Hour Pass Unlocked.")
-        send_quality_options(message.chat.id, lang)
 
 # ----------------------------------------------------
 # 5. TELEGRAM STARS PREMIUM MENU & INVOICING
