@@ -34,7 +34,7 @@ def send_start(message):
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
+    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang", style="primary"))
     bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -50,23 +50,25 @@ def handle_language(call):
     if call.data == '/btn_lang':
         markup = InlineKeyboardMarkup()
         markup.row(
-            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
-            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
+            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en", style="primary"),
+            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am", style="success")
         )
-        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
         bot.edit_message_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
         set_user_attr(u_id, "lang", selected_lang)
-        confirm_text = "✅ Language set to English."
+        
         if selected_lang == "am":
-            confirm_text = "✅ ቋንቋው በሁኔታው ወደ አማርኛ ተቀይሯል።"
+            confirm_text = "✅ ቋንቋዎ በተሳካ ሁኔታ ወደ አማርኛ ተቀይሯል።\n\nአሁን የ TikTok ሊንክዎን ይላኩ።"
         elif selected_lang == "om":
-            confirm_text = "✅ Afaan gara Afaan Oromotti jijjiirameera."
+            confirm_text = "✅ Afaan keessan milkaa'inaan gara Afaan Oromotti jijjiirameera.\n\nAmma hidhaa TikTok keessan ergaa."
+        else:
+            confirm_text = "✅ Language successfully changed to English.\n\nNow send your TikTok link."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="primary"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -77,6 +79,7 @@ def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
+    set_user_attr(u_id, "watched_ad", False) # Reset ad view status for new link
     
     lang = get_user_attr(u_id, "lang", "en")
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
@@ -84,7 +87,7 @@ def handle_tiktok_link(message):
 
     if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰንደንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰከንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
             b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
             b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
             b_prem = "⭐ ፕሪሚየም ይግዙ"
@@ -100,10 +103,10 @@ def handle_tiktok_link(message):
             b_prem = "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL)))
-        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad"))
-        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger"))
+        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad", style="success"))
+        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
@@ -115,11 +118,24 @@ def handle_tiktok_link(message):
 @bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
 def handle_verify_ad(call):
     u_id = call.from_user.id
+    lang = get_user_attr(u_id, "lang", "en")
+    
+    # Check if user actually interacted with the WebApp ad button first
+    watched = get_user_attr(u_id, "watched_ad", False)
+    if not watched:
+        if lang == "am":
+            alert_txt = "⚠️ እባክዎ መጀመሪያ 'ማስታወቂያ ይመልከቱ' የሚለውን በመንካት ማስታወቂያውን ይመልከቱ!"
+        elif lang == "om":
+            alert_txt = "⚠️ Maaloo dura 'Beeksisa Daawwadhaa' tuquun beeksisa ilaalaa!"
+        else:
+            alert_txt = "⚠️ Please click 'Watch ad' first and watch the 15s ad before verifying!"
+        bot.answer_callback_query(call.id, alert_txt, show_alert=True)
+        return
+
     current_time = int(time.time())
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
     
-    lang = get_user_attr(u_id, "lang", "en")
-    bot.answer_callback_q_data = bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
+    bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
     
     if lang == "am":
         prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
@@ -132,10 +148,10 @@ def handle_verify_ad(call):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.edit_message_text(prompt_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
@@ -151,12 +167,18 @@ def send_quality_options(chat_id, lang):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
+
+# Track WebApp interaction so users can't bypass verification instantly
+@bot.message_handler(content_types=['web_app_data'])
+def handle_webapp_data(message):
+    u_id = message.from_user.id
+    set_user_attr(u_id, "watched_ad", True)
 
 # ----------------------------------------------------
 # 5. TELEGRAM STARS PREMIUM MENU & INVOICING
@@ -164,10 +186,10 @@ def send_quality_options(chat_id, lang):
 @bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
 def handle_premium_menu(call):
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50"))
-    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105"))
-    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="primary"))
+    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="success"))
+    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     msg = (
         "🚫 Remove ads\n\n"
@@ -269,7 +291,7 @@ def handle_download(call):
 
             if download_url:
                 markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
                 if quality == 'audio':
                     bot.send_audio(
