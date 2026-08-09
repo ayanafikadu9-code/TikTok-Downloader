@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader</title>
+    <title>TikTok Downloader - Ad Verification</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         body {
@@ -51,6 +51,9 @@
             cursor: pointer;
             display: none;
         }
+        .btn:active {
+            opacity: 0.8;
+        }
     </style>
 </head>
 <body>
@@ -58,8 +61,8 @@
     <div class="container">
         <h2>Ad Verification</h2>
         <p>Please wait while the verification completes to unlock your TikTok video.</p>
-        <div class="timer" id="count">15</div>
-        <button class="btn" id="doneBtn" onclick="finishTask()">Continue</button>
+        <div class="timer" id="count">10</div>
+        <button class="btn" id="doneBtn" onclick="finishTask()">Continue to Bot</button>
     </div>
 
     <script>
@@ -67,7 +70,7 @@
         tg.ready();
         tg.expand();
 
-        let timeLeft = 15;
+        let timeLeft = 10;
         const countEl = document.getElementById('count');
         const doneBtn = document.getElementById('doneBtn');
 
@@ -83,6 +86,7 @@
         }, 1000);
 
         function finishTask() {
+            // Sends data back to bot and closes web app window
             tg.sendData("AD_COMPLETED");
         }
     </script>
