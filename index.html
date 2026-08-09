@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Watch Ad to Download</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Replace this line with your official Monetag SDK Script -->
+  <script src="https://alwingulla.com/88/tag.min.js" data-zone="YOUR_MONETAG_ZONE_ID" async data-cfasync="false"></script>
+  
+  <style>
+    body {
+      background-color: #17212b;
+      color: #ffffff;
+      font-family: sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+      margin: 0;
+      text-align: center;
+    }
+    .btn {
+      background-color: #2481cc;
+      color: white;
+      padding: 15px 30px;
+      font-size: 18px;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      width: 80%;
+      margin-top: 20px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+<body>
+
+  <h2>Watch Ad to Download Video</h2>
+  <p>Click below to complete verification and get your video:</p>
+
+  <button class="btn" onclick="completeAd()">Continue</button>
+
+  <script>
+    const tg = window.Telegram.WebApp;
+    tg.expand();
+
+    function completeAd() {
+      // Sends completion signal back to your Python bot
+      tg.sendData("AD_COMPLETED");
+      tg.close();
+    }
+  </script>
+</body>
+</html>
