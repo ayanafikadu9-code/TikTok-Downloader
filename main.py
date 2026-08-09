@@ -1,13 +1,10 @@
-import asyncio
 import time
-import aiohttp
-from aiogram import Bot, Dispatcher, F, types
-from aiogram.filters import Command
-from aiogram.types import InlineKeyboardButton, InlineKeyboardMarkup, WebAppInfo, LabeledPrice, PreCheckoutQuery
+import requests
+import telebot
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
 from config import BOT_TOKEN, API_URL, WEB_APP_URL
 
-bot = Bot(token=BOT_TOKEN)
-dp = Dispatcher()
+bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
 
 def get_user_attr(user_id, key, default=None):
@@ -18,8 +15,11 @@ def set_user_attr(user_id, key, value):
         user_data[user_id] = {}
     user_data[user_id][key] = value
 
-@dp.message(Command("start"))
-async def send_start(message: types.Message):
+# ----------------------------------------------------
+# 1. COMMAND: /start
+# ----------------------------------------------------
+@bot.message_handler(commands=['start'])
+def send_start(message):
     u_id = message.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
 
@@ -33,28 +33,29 @@ async def send_start(message: types.Message):
         text_msg = "🎬 Welcome to TikTok Downloader Bot!\n\nSend any TikTok link below to start."
         btn_lang = "🌐 Change Language"
 
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=btn_lang, callback_data="/btn_lang", style="primary")]
-    ])
-    await message.answer(text_msg, reply_markup=markup, parse_mode="Markdown")
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
+    bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
-@dp.callback_query(F.data.in_(['/btn_lang', '/lang_en', '/lang_am', '/lang_om', '/btn_home']))
-async def handle_language(call: types.CallbackQuery):
+# ----------------------------------------------------
+# 2. LANGUAGE SELECTION MENU
+# ----------------------------------------------------
+@bot.callback_query_handler(func=lambda call: call.data in ['/btn_lang', '/lang_en', '/lang_am', '/lang_om', '/btn_home'])
+def handle_language(call):
     u_id = call.from_user.id
     if call.data == '/btn_home':
-        await send_start(call.message)
+        send_start(call.message)
         return
 
     if call.data == '/btn_lang':
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [
-                InlineKeyboardButton(text="🇬🇧 English", callback_data="/lang_en", style="primary"),
-                InlineKeyboardButton(text="🇪🇹 አማርኛ", callback_data="/lang_am", style="success")
-            ],
-            [InlineKeyboardButton(text="🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary")],
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="danger")]
-        ])
-        await call.message.edit_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", reply_markup=markup, parse_mode="Markdown")
+        markup = InlineKeyboardMarkup()
+        markup.row(
+            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
+            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
+        )
+        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        bot.edit_message_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
         set_user_attr(u_id, "lang", selected_lang)
@@ -64,13 +65,15 @@ async def handle_language(call: types.CallbackQuery):
         elif selected_lang == "om":
             confirm_text = "✅ Afaan gara Afaan Oromotti jijjiirameera."
 
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="primary")]
-        ])
-        await call.message.edit_text(confirm_text, reply_markup=markup, parse_mode="Markdown")
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
-@dp.message(F.text & (F.text.contains("tiktok.com") | F.text.contains("vt.tiktok.com")))
-async def handle_tiktok_link(message: types.Message):
+# ----------------------------------------------------
+# 3. LINK DETECTION (AD GATE)
+# ----------------------------------------------------
+@bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
+def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
@@ -81,7 +84,7 @@ async def handle_tiktok_link(message: types.Message):
 
     if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰከንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰንደንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
             b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
             b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
             b_prem = "⭐ ፕሪሚየም ይግዙ"
@@ -96,27 +99,28 @@ async def handle_tiktok_link(message: types.Message):
             b_verify = "✅ I have watched the ad"
             b_prem = "⭐ Buy Premium"
 
-        markup = InlineKeyboardMarkup(inline_keyboard=[
-            [InlineKeyboardButton(text=b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger")],
-            [InlineKeyboardButton(text=b_verify, callback_data="/verify_ad", style="success")],
-            [InlineKeyboardButton(text=b_prem, callback_data="/buy_premium", style="primary")],
-            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="danger")]
-        ])
-        await message.answer(gate_msg, reply_markup=markup, parse_mode="Markdown")
-    else:
-        await send_quality_options(message.chat.id, lang)
+        markup = InlineKeyboardMarkup()
+        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL)))
+        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad"))
+        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
-@dp.callback_query(F.data == '/verify_ad')
-async def handle_verify_ad(call: types.CallbackQuery):
+        bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
+    else:
+        send_quality_options(message.chat.id, lang)
+
+# ----------------------------------------------------
+# 4. MANUAL AD VERIFICATION BUTTON HANDLER
+# ----------------------------------------------------
+@bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
+def handle_verify_ad(call):
     u_id = call.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
     
     lang = get_user_attr(u_id, "lang", "en")
-    await call.answer("✅ Ad verified successfully!")
-    await send_quality_options(call.message.chat.id, lang)
-
-async def send_quality_options(chat_id, lang):
+    bot.answer_callback_q_data = bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
+    
     if lang == "am":
         prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
         b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
@@ -127,22 +131,44 @@ async def send_quality_options(chat_id, lang):
         prompt_text = "🎥 Choose download option:"
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text=b_no_wm, callback_data="quality_nowatermark", style="success")],
-        [InlineKeyboardButton(text=b_wm, callback_data="quality_watermark", style="primary")],
-        [InlineKeyboardButton(text=b_au, callback_data="quality_audio", style="primary")],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="danger")]
-    ])
-    await bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
-@dp.callback_query(F.data == '/buy_premium')
-async def handle_premium_menu(call: types.CallbackQuery):
-    markup = InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="primary")],
-        [InlineKeyboardButton(text="🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="success")],
-        [InlineKeyboardButton(text="💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary")],
-        [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="danger")]
-    ])
+    bot.edit_message_text(prompt_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+
+def send_quality_options(chat_id, lang):
+    if lang == "am":
+        prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
+        b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
+    elif lang == "om":
+        prompt_text = "🎥 Filannoo buufata filadhaa:"
+        b_no_wm, b_wm, b_au = "🎬 Viidiyoo (Mallattoo Malee)", "🏷️ Viidiyoo (Mallattoo Wajjin)", "🎵 Sagalee Qofa (MP3)"
+    else:
+        prompt_text = "🎥 Choose download option:"
+        b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
+
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+
+    bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
+
+# ----------------------------------------------------
+# 5. TELEGRAM STARS PREMIUM MENU & INVOICING
+# ----------------------------------------------------
+@bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
+def handle_premium_menu(call):
+    markup = InlineKeyboardMarkup()
+    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50"))
+    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105"))
+    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+
     msg = (
         "🚫 Remove ads\n\n"
         "Download videos without mandatory ads or waiting.\n\n"
@@ -152,97 +178,119 @@ async def handle_premium_menu(call: types.CallbackQuery):
         "✅ Priority support\n\n"
         "Choose how long to remove ads 👇"
     )
-    await call.message.edit_text(msg, reply_markup=markup, parse_mode="Markdown")
+    bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
-@dp.callback_query(F.data.startswith('buy_stars_'))
-async def send_star_invoice(call: types.CallbackQuery):
+@bot.callback_query_handler(func=lambda call: call.data.startswith('buy_stars_'))
+def send_star_invoice(call):
     stars = int(call.data.split('_')[2])
     days_map = {50: 30, 105: 90, 350: 365}
     days = days_map.get(stars, 30)
 
-    await bot.send_invoice(
+    title = "TikTok Downloader Premium"
+    description = f"Unlock {days} days of ad-free unlimited TikTok downloads."
+    payload = f"premium_{days}_{call.from_user.id}"
+    currency = "XTR"
+    prices = [LabeledPrice(label=f"Premium ({days} Days)", amount=stars)]
+
+    bot.send_invoice(
         call.message.chat.id,
-        title="TikTok Downloader Premium",
-        description=f"Unlock {days} days of ad-free unlimited TikTok downloads.",
-        payload=f"premium_{days}_{call.from_user.id}",
+        title=title,
+        description=description,
+        invoice_payload=payload,
         provider_token="",
-        currency="XTR",
-        prices=[LabeledPrice(label=f"Premium ({days} Days)", amount=stars)],
+        currency=currency,
+        prices=prices,
         start_parameter="premium-subscription"
     )
 
-@dp.pre_checkout_query()
-async def process_pre_checkout(query: PreCheckoutQuery):
-    await query.answer(ok=True)
+@bot.pre_checkout_query_handler(func=lambda query: True)
+def process_pre_checkout(query):
+    bot.answer_pre_checkout_query(query.id, ok=True)
 
-@dp.message(F.successful_payment)
-async def handle_successful_payment(message: types.Message):
+@bot.message_handler(content_types=['successful_payment'])
+def handle_successful_payment(message):
     u_id = message.from_user.id
+    current_time = int(time.time())
     payload = message.successful_payment.invoice_payload
     days = int(payload.split('_')[1])
-    set_user_attr(u_id, "ad_pass_expiry", int(time.time()) + (days * 86400))
-    await message.answer(f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days.", parse_mode="Markdown")
+    
+    expiry = current_time + (days * 86400)
+    set_user_attr(u_id, "ad_pass_expiry", expiry)
 
-@dp.callback_query(F.data.startswith('quality_'))
-async def handle_download(call: types.CallbackQuery):
+    bot.send_message(
+        message.chat.id, 
+        f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days. Enjoy ad-free downloading!",
+        parse_mode="Markdown"
+    )
+
+# ----------------------------------------------------
+# 6. EXECUTE DOWNLOAD
+# ----------------------------------------------------
+@bot.callback_query_handler(func=lambda call: call.data.startswith('quality_'))
+def handle_download(call):
     u_id = call.from_user.id
     quality = call.data.replace('quality_', '')
     url = get_user_attr(u_id, "tiktok_url")
 
     if not url:
-        await call.message.edit_text("❌ Session expired. Please send the TikTok link again.")
+        bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
         return
 
-    await call.message.edit_text("⏳ Processing your request...", parse_mode="Markdown")
+    bot.edit_message_text("⏳ Processing your request...", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
-    async with aiohttp.ClientSession() as session:
-        try:
-            async with session.get(f"{API_URL}?url={url}", timeout=15) as resp:
-                data = await resp.json()
-                if data.get('success'):
-                    result = data.get('result', [{}])[0]
-                    download_url = None
+    try:
+        resp = requests.get(f"{API_URL}?url={url}", timeout=15)
+        data = resp.json()
 
-                    if quality == 'audio':
-                        music_info = result.get('music', {})
-                        if isinstance(music_info, dict):
-                            download_url = music_info.get('play_url') or music_info.get('url')
-                        elif isinstance(music_info, list) and len(music_info) > 0:
-                            download_url = music_info[0].get('play_url') or music_info[0].get('url')
+        if data.get('success'):
+            result = data.get('result', [{}])[0]
+            download_url = None
+
+            if quality == 'audio':
+                music_info = result.get('music', {})
+                if isinstance(music_info, dict):
+                    download_url = music_info.get('play_url') or music_info.get('url')
+                elif isinstance(music_info, list) and len(music_info) > 0:
+                    download_url = music_info[0].get('play_url') or music_info[0].get('url')
+                if not download_url:
+                    download_url = result.get('audio')
+            else:
+                videos = result.get('videos', [])
+                if videos:
+                    if quality == 'watermark':
+                        for v in videos:
+                            if 'watermark' in v.get('quality', '').lower():
+                                download_url = v.get('url')
+                                break
                         if not download_url:
-                            download_url = result.get('audio')
+                            download_url = videos[0].get('url')
                     else:
-                        videos = result.get('videos', [])
-                        if videos:
-                            if quality == 'watermark':
-                                for v in videos:
-                                    if 'watermark' in v.get('quality', '').lower():
-                                        download_url = v.get('url')
-                                        break
-                                if not download_url:
-                                    download_url = videos[0].get('url')
-                            else:
-                                download_url = videos[0].get('url')
+                        download_url = videos[0].get('url')
 
-                    if download_url:
-                        markup = InlineKeyboardMarkup(inline_keyboard=[
-                            [InlineKeyboardButton(text="🏠 Main Menu", callback_data="/btn_home", style="primary")]
-                        ])
-                        if quality == 'audio':
-                            await call.message.answer_audio(audio=download_url, title="TikTok Audio Stream")
-                        else:
-                            await call.message.answer_video(video=download_url)
-                        await call.message.edit_text("✅ Download Complete!", reply_markup=markup, parse_mode="Markdown")
-                    else:
-                        await call.message.edit_text("❌ Could not extract download link.")
+            if download_url:
+                markup = InlineKeyboardMarkup()
+                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+
+                if quality == 'audio':
+                    bot.send_audio(
+                        call.message.chat.id, 
+                        audio=download_url, 
+                        title="TikTok Audio Stream", 
+                        performer="MakeChapa Bot"
+                    )
                 else:
-                    await call.message.edit_text("❌ API Error. Try another link.")
-        except Exception:
-            await call.message.edit_text("❌ Connection error while downloading.")
+                    bot.send_video(
+                        call.message.chat.id, 
+                        video=download_url
+                    )
 
-async def main():
-    print("Aiogram Bot with colored buttons is running...")
-    await dp.start_polling(bot)
+                bot.edit_message_text("✅ Download Complete!", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
+            else:
+                bot.edit_message_text("❌ Could not extract download link.", call.message.chat.id, call.message.message_id)
+        else:
+            bot.edit_message_text("❌ API Error. Please try a different TikTok link.", call.message.chat.id, call.message.message_id)
+    except Exception:
+        bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-if __name__ == "__main__":
-    asyncio.run(main())
+print("Modular Bot is starting...")
+bot.infinity_polling()
