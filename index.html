@@ -60,8 +60,8 @@
 
     <div class="container">
         <h2>Ad Verification</h2>
-        <p>Please wait for the timer to finish, then click below to return to the bot.</p>
-        <div class="timer" id="count">10</div>
+        <p>Please watch the ad for 15 seconds to unlock your download.</p>
+        <div class="timer" id="count">15</div>
         <button class="btn" id="doneBtn" onclick="finishTask()">Continue to Bot</button>
     </div>
 
@@ -70,7 +70,7 @@
         tg.ready();
         tg.expand();
 
-        let timeLeft = 10;
+        let timeLeft = 15;
         const countEl = document.getElementById('count');
         const doneBtn = document.getElementById('doneBtn');
 
@@ -86,7 +86,6 @@
         }, 1000);
 
         function finishTask() {
-            // Closes the web app window smoothly back to chat
             tg.close();
         }
     </script>
