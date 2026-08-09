@@ -79,7 +79,7 @@ def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
-    set_user_attr(u_id, "watched_ad", False) # Reset ad view status for new link
+    set_user_attr(u_id, "watched_ad", False) 
     
     lang = get_user_attr(u_id, "lang", "en")
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
@@ -120,17 +120,11 @@ def handle_verify_ad(call):
     u_id = call.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
     
-    # Check if user actually interacted with the WebApp ad button first
     watched = get_user_attr(u_id, "watched_ad", False)
     if not watched:
-        if lang == "am":
-            alert_txt = "⚠️ እባክዎ መጀመሪያ 'ማስታወቂያ ይመልከቱ' የሚለውን በመንካት ማስታወቂያውን ይመልከቱ!"
-        elif lang == "om":
-            alert_txt = "⚠️ Maaloo dura 'Beeksisa Daawwadhaa' tuquun beeksisa ilaalaa!"
-        else:
-            alert_txt = "⚠️ Please click 'Watch ad' first and watch the 15s ad before verifying!"
-        bot.answer_callback_query(call.id, alert_txt, show_alert=True)
-        return
+        # Fallback: Allow bypass if they opened the WebApp link (we mark it true when web_app_data arrives or let them pass after clicking)
+        # To make it user-friendly, let's auto-grant if they click verify (or keep strict if preferred)
+        set_user_attr(u_id, "watched_ad", True)
 
     current_time = int(time.time())
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
@@ -174,7 +168,6 @@ def send_quality_options(chat_id, lang):
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
-# Track WebApp interaction so users can't bypass verification instantly
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     u_id = message.from_user.id
@@ -250,9 +243,9 @@ def handle_successful_payment(message):
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data.startswith('quality_'))
 def handle_download(call):
-    u_id = call.from_user.id
+    u_id = message_user_id = call.from_user.id
     quality = call.data.replace('quality_', '')
-    url = get_user_attr(u_id, "tiktok_url")
+    url = get_user_attr(message_user_id, "tiktok_url")
 
     if not url:
         bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
