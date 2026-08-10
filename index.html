@@ -3,75 +3,15 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advertisement</title>
+    <title>TikTok Downloader</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #0f172a;
-            color: #fff;
-            text-align: center;
-            padding-top: 50px;
-            margin: 0;
-        }
-        .container {
-            background: #1e293b;
-            padding: 30px;
-            margin: 20px;
-            border-radius: 12px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-        }
-        .timer {
-            font-size: 28px;
-            color: #38bdf8;
-            margin: 20px 0;
-            font-weight: bold;
-        }
-        .btn {
-            background-color: #22c55e;
-            color: white;
-            border: none;
-            padding: 14px 28px;
-            font-size: 16px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-weight: bold;
-            display: none;
-        }
+        body { font-family: Arial, sans-serif; text-align: center; padding: 50px; background: #0f172a; color: #fff; }
+        h1 { color: #38bdf8; }
+        p { color: #94a3b8; }
     </style>
 </head>
 <body>
-
-    <div class="container">
-        <h2>🔥 Sponsored Ad</h2>
-        <p>Please wait 15 seconds to unlock your free download pass.</p>
-        <div class="timer" id="countdown">15</div>
-        <button class="btn" id="claim-btn" onclick="returnToBot()">Click to get reward & return!</button>
-    </div>
-
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <script>
-        let tg = window.Telegram.WebApp;
-        tg.expand();
-
-        let timeLeft = 15;
-        let timerDisplay = document.getElementById("countdown");
-        let claimBtn = document.getElementById("claim-btn");
-
-        let downloadTimer = setInterval(function() {
-            timeLeft--;
-            timerDisplay.innerText = timeLeft;
-            if (timeLeft <= 0) {
-                clearInterval(downloadTimer);
-                timerDisplay.style.display = "none";
-                claimBtn.style.display = "block";
-            }
-        }, 1000);
-
-        function returnToBot() {
-            tg.sendData("watched");
-            tg.close();
-        }
-    </script>
+    <h1>TikTok Downloader Web App</h1>
+    <p>You have successfully opened the web interface. You can return to the Telegram bot to download your videos!</p>
 </body>
 </html>
