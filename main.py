@@ -317,3 +317,25 @@ if not url:
 
 print("Modular Bot is starting...")
 bot.infinity_polling()
+
+# ----------------------------------------------------
+# 7. FLASK WEB SERVER FOR RENDER (KEEPS BOT FREE & ALIVE)
+# ----------------------------------------------------
+from flask import render_template
+
+app = Flask(__name__, template_folder='.')
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+def run_flask():
+    app.run(host="0.0.0.0", port=10000)
+
+if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+
+    print("Bot and Web Server running successfully...")
+    bot.infinity_polling()
+
