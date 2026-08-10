@@ -2,7 +2,6 @@ import time
 import requests
 import telebot
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
-from config import BOT_TOKEN, API_URL, WEB_APP_URL
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -16,7 +15,7 @@ def set_user_attr(user_id, key, value):
     user_data[user_id][key] = value
 
 # ----------------------------------------------------
-# 1. /START & LANGUAGE SELECTION
+# 1. /START & LANGUAGE SELECTION (FULLY COLORED)
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_start(message):
@@ -34,7 +33,7 @@ def send_start(message):
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
+    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang", style="primary"))
     bot.send_message(message.chat.id, text_msg, reply_markup=markup)
 
 @bot.callback_query_handler(func=lambda call: call.data in ['/btn_lang', '/lang_en', '/lang_am', '/lang_om', '/btn_home'])
@@ -47,11 +46,11 @@ def handle_language(call):
     if call.data == '/btn_lang':
         markup = InlineKeyboardMarkup()
         markup.row(
-            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
-            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
+            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en", style="primary"),
+            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am", style="success")
         )
-        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
         bot.edit_message_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", call.message.chat.id, call.message.message_id, reply_markup=markup)
     else:
         selected_lang = call.data.replace('/lang_', '')
@@ -65,11 +64,11 @@ def handle_language(call):
             confirm_text = "✅ Language successfully changed to English.\n\nNow send your TikTok link."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 # ----------------------------------------------------
-# 2. TIKTOK LINK HANDLER (AD GATE WITH 3 BUTTONS)
+# 2. TIKTOK LINK HANDLER (AD GATE WITH FULL COLORS)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -84,47 +83,66 @@ def handle_tiktok_link(message):
 
     lang = get_user_attr(u_id, "lang", "en")
     if lang == "am":
-        gate_msg = "🔥 ለቀጣይ 24 ሰዓት በነፃ ለማውረድ ማስታወቂያውን ይዩ ወይም ፕሪሚየም ይግዙ:"
+        gate_msg = "🔥 ቪዲዮ ለማውረድ የ 15 ሰከንድ ማስታወቂያ ይመልከቱ ወይም ድረ-ገጹን ይጎብኙ:"
         b_ad = "👉 ማስታወቂያ ይመልከቱ (15s)"
+        b_skip = "⏭️ ድረ-ገጽ ክፈት (Skip)"
         b_prem = "⭐ ፕሪሚየም ይግዙ"
-        b_skip = "⏭️ ይዝለሉ (ወደ ድረ-ገጽ ይሂዱ)"
     elif lang == "om":
-        gate_msg = "🔥 Viidiyoo bilisaan buufachuuf beeksisa ilaalaa ykn piriimiyamii bitaa:"
-        b_ad = "👉 Beeksisa Daawwadhaa (15s)"
+        gate_msg = "🔥 Viidiyoo buufachuuf beeksisa sekondii 15 ilaalaa ykn marsariitii bitaa:"
+        b_ad = "👉 Beeksisa Ilaalaa (15s)"
+        b_skip = "⏭️ Marsariitii Banuu (Skip)"
         b_prem = "⭐ Piriimiyamii Bitaa"
-        b_skip = "⏭️ Irra darbi (Marsariitii)"
     else:
         gate_msg = "To continue, watch a short ad (15 sec), skip to web, or buy premium:"
         b_ad = "👉 Watch ad (15s)"
-        b_prem = "⭐ Buy Premium"
         b_skip = "⏭️ Skip (Open Web)"
+        b_prem = "⭐ Buy Premium"
 
     markup = InlineKeyboardMarkup()
-    # 1st Button: Watch Ad (Opens WebApp)
-    markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger"))
-    # 2nd Button: Buy Premium
+    markup.add(InlineKeyboardButton(b_ad, callback_data="start_countdown", style="danger"))
     markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-    # 3rd Button: Skip / Web Link Direct Access
     markup.add(InlineKeyboardButton(b_skip, url=WEB_APP_URL, style="success"))
-    # Home button
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(message.chat.id, gate_msg, reply_markup=markup)
 
 # ----------------------------------------------------
-# 3. WEB APP SIGNAL (AUTO-PASS 24 HOURS)
+# 3. LIVE 15-SECOND COUNTDOWN & RE-SEND PROMPT
 # ----------------------------------------------------
-@bot.message_handler(content_types=['web_app_data'])
-def handle_webapp_data(message):
-    u_id = message.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data == 'start_countdown')
+def handle_ad_countdown(call):
+    u_id = call.from_user.id
+    chat_id = call.message.chat.id
+    msg_id = call.message.message_id
+
+    for remaining in range(14, 0, -1):
+        try:
+            bot.edit_message_text(
+                f"⏳ **Please watch the ad...**\n\nUnlocking in: **{remaining} seconds**",
+                chat_id,
+                msg_id,
+                parse_mode="Markdown"
+            )
+            time.sleep(1)
+        except Exception:
+            pass
+
     current_time = int(time.time())
-    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400) # 24 Hours
-    
-    bot.send_message(message.chat.id, "✅ Ad verified successfully! 24-hour pass activated.")
-    send_quality_options(message.chat.id, get_user_attr(u_id, "lang", "en"))
+    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
+
+    try:
+        bot.delete_message(chat_id, msg_id)
+    except Exception:
+        pass
+
+    bot.send_message(
+        chat_id, 
+        "✅ **Ad completed successfully!** 24-hour pass activated.\n\n📌 **Please send your TikTok link again to download your video!**",
+        parse_mode="Markdown"
+    )
 
 # ----------------------------------------------------
-# 4. QUALITY OPTIONS MENU
+# 4. QUALITY OPTIONS MENU (FULLY COLORED)
 # ----------------------------------------------------
 def send_quality_options(chat_id, lang):
     if lang == "am":
@@ -146,7 +164,7 @@ def send_quality_options(chat_id, lang):
     bot.send_message(chat_id, prompt_text, reply_markup=markup)
 
 # ----------------------------------------------------
-# 5. PREMIUM SUBSCRIPTION DURATION MENU (1M, 3M, 6M, 1Y)
+# 5. PREMIUM SUBSCRIPTION MENU (FULLY COLORED)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
 def handle_premium_menu(call):
