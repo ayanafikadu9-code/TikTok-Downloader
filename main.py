@@ -2,12 +2,13 @@ import time
 import threading
 import requests
 import telebot
-from flask import Flask, render_template
-from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
+from flask import Flask
+from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice
 
 BOT_TOKEN = "8913902406:AAE5YB6XyXY4JBXbODODwOTl4P-dnV7T2rA"
 API_URL = "https://tikwm.com/api/"
-WEB_APP_URL = "https://yourwebsite.com"
+# Replace this with your actual Monetag direct link or your GitHub page URL
+MONETAG_AD_URL = "https://ayanafikadu9-code.github.io/TikTok-Downloader/"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -39,7 +40,7 @@ def send_start(message):
         btn_lang = "🌐 Change Language"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang", style="primary"))
+    markup.add(InlineKeyboardButton(btn_lang, callback_data="/btn_lang"))
     bot.send_message(message.chat.id, text_msg, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -55,11 +56,11 @@ def handle_language(call):
     if call.data == '/btn_lang':
         markup = InlineKeyboardMarkup()
         markup.row(
-            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en", style="primary"),
-            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am", style="success")
+            InlineKeyboardButton("🇬🇧 English", callback_data="/lang_en"),
+            InlineKeyboardButton("🇪🇹 አማርኛ", callback_data="/lang_am")
         )
-        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om", style="primary"))
-        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+        markup.row(InlineKeyboardButton("🇪🇹 Afaan Oromoo", callback_data="/lang_om"))
+        markup.row(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
         bot.edit_message_text("🌐 Please select your language / ቋንቋ ይምረጡ / Afaan filadhaa:", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
     else:
         selected_lang = call.data.replace('/lang_', '')
@@ -73,7 +74,7 @@ def handle_language(call):
             confirm_text = "✅ Language successfully changed to English.\n\nNow send your TikTok link."
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="primary"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 # ----------------------------------------------------
@@ -84,7 +85,6 @@ def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
-    set_user_attr(u_id, "watched_ad", False)
     
     lang = get_user_attr(u_id, "lang", "en")
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
@@ -92,52 +92,42 @@ def handle_tiktok_link(message):
 
     if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰከንድ)\n2️⃣ ፕሪሚየም ይግዙ"
-            b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (ሊንኩን ይጫኑ)\n2️⃣ ከዛ 'ማስታወቂያ ተመልክቻለሁ' ይንኩ"
+            b_ad = "👁️ ማስታወቂያ ይመልከቱ"
             b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
             b_prem = "⭐ ፕሪሚየም ይግዙ"
         elif lang == "om":
-            gate_msg = "🔥 Sa'atii 24 ffaaf viidiyoo 10,000 bilisaan buufadhaa!"
-            b_ad = "👁️ Beeksisa Daawwadhaa (15s)"
+            gate_msg = "🔥 Viidiyoo buufachuuf beeksisa ilaalaa!"
+            b_ad = "👁️ Beeksisa Daawwadhaa"
             b_verify = "✅ Beeksisa Ilaaleera"
             b_prem = "⭐ Piriimiyamii Bitaa"
         else:
-            gate_msg = "To continue, watch a short ad (15 sec), skip to web, or buy premium:"
-            b_ad = "👁️ Watch ad (15s)"
+            gate_msg = "To continue, watch the ad link below, then click verify:"
+            b_ad = "👁️ Watch Ad"
             b_verify = "✅ I have watched the ad"
             b_prem = "⭐ Buy Premium"
 
         markup = InlineKeyboardMarkup()
-        markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger"))
-        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad", style="success"))
-        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+        # Using normal url button so it opens cleanly in the browser without ERR_CONNECTION_REFUSED
+        markup.add(InlineKeyboardButton(b_ad, url=MONETAG_AD_URL))
+        markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad"))
+        markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium"))
+        markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
         bot.send_message(message.chat.id, gate_msg, reply_markup=markup, parse_mode="Markdown")
     else:
         send_quality_options(message.chat.id, lang)
 
 # ----------------------------------------------------
-# 4. MANUAL AD VERIFICATION BUTTON HANDLER
+# 4. MANUAL AD VERIFICATION
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
 def handle_verify_ad(call):
     u_id = call.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
     
-    watched = get_user_attr(u_id, "watched_ad", False)
-    if not watched:
-        if lang == "am":
-            alert_txt = "⚠️ እባክዎ መጀመሪያ 'ማስታወቂያ ይመልከቱ' የሚለውን በመንካት ማስታወቂያውን ይመልከቱ!"
-        elif lang == "om":
-            alert_txt = "⚠️ Maaloo dura 'Beeksisa Daawwadhaa' tuquun beeksisa ilaalaa!"
-        else:
-            alert_txt = "⚠️ Please click 'Watch ad' first and watch the 15s ad before verifying!"
-        bot.answer_callback_query(call.id, alert_txt, show_alert=True)
-        return
-
     current_time = int(time.time())
-    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
+    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400) # 24 hour pass
     
     bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
     send_quality_options(call.message.chat.id, lang)
@@ -154,34 +144,25 @@ def send_quality_options(chat_id, lang):
         b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
 
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark"))
+    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark"))
+    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
-@bot.message_handler(content_types=['web_app_data'])
-def handle_webapp_data(message):
-    u_id = message.from_user.id
-    set_user_attr(u_id, "watched_ad", True)
-
 # ----------------------------------------------------
-# 5. TELEGRAM STARS PREMIUM MENU & INVOICING
+# 5. TELEGRAM STARS PREMIUM MENU
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
 def handle_premium_menu(call):
     markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️ (30% OFF)", callback_data="buy_stars_50", style="primary"))
-    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️ (30% OFF)", callback_data="buy_stars_105", style="success"))
-    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️ (30% OFF)", callback_data="buy_stars_350", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+    markup.add(InlineKeyboardButton("🚫 1 month — 50 ⭐️", callback_data="buy_stars_50"))
+    markup.add(InlineKeyboardButton("🔥 3 months — 105 ⭐️", callback_data="buy_stars_105"))
+    markup.add(InlineKeyboardButton("💎 12 months — 350 ⭐️", callback_data="buy_stars_350"))
+    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
-    msg = (
-        "🚫 Remove ads\n\n"
-        "Download videos without mandatory ads or waiting.\n\n"
-        "Choose how long to remove ads 👇"
-    )
+    msg = "🚫 Remove ads and download instantly.\n\nChoose duration:"
     bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
 
 @bot.callback_query_handler(func=lambda call: call.data.startswith('buy_stars_'))
@@ -191,7 +172,7 @@ def send_star_invoice(call):
     days = days_map.get(stars, 30)
 
     title = "TikTok Downloader Premium"
-    description = f"Unlock {days} days of ad-free unlimited TikTok downloads."
+    description = f"Unlock {days} days of ad-free downloads."
     payload = f"premium_{days}_{call.from_user.id}"
     currency = "XTR"
     prices = [LabeledPrice(label=f"Premium ({days} Days)", amount=stars)]
@@ -204,7 +185,7 @@ def send_star_invoice(call):
         provider_token="",
         currency=currency,
         prices=prices,
-        start_parameter="premium-subscription"
+        start_parameter="premium-sub"
     )
 
 @bot.pre_checkout_query_handler(func=lambda query: True)
@@ -221,11 +202,7 @@ def handle_successful_payment(message):
     expiry = current_time + (days * 86400)
     set_user_attr(u_id, "ad_pass_expiry", expiry)
 
-    bot.send_message(
-        message.chat.id, 
-        f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days.",
-        parse_mode="Markdown"
-    )
+    bot.send_message(message.chat.id, f"🎉 Payment Received! Premium active for {days} days.", parse_mode="Markdown")
 
 # ----------------------------------------------------
 # 6. EXECUTE DOWNLOAD
@@ -237,10 +214,10 @@ def handle_download(call):
     url = get_user_attr(u_id, "tiktok_url")
 
     if not url:
-        bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("❌ Session expired. Send the TikTok link again.", call.message.chat.id, call.message.message_id)
         return
 
-    bot.edit_message_text("⏳ Processing your request...", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
+    bot.edit_message_text("⏳ Processing...", call.message.chat.id, call.message.message_id, parse_mode="Markdown")
 
     try:
         resp = requests.get(f"{API_URL}?url={url}", timeout=15)
@@ -262,48 +239,35 @@ def handle_download(call):
                 videos = result.get('videos', [])
                 if videos:
                     if quality == 'watermark':
-                        for v in videos:
-                            if 'watermark' in v.get('quality', '').lower():
-                                download_url = v.get('url')
-                                break
-                        if not download_url:
-                            download_url = videos[0].get('url')
+                        download_url = videos[0].get('url') # fallback or watermarked
                     else:
                         download_url = videos[0].get('url')
 
             if download_url:
                 markup = InlineKeyboardMarkup()
-                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
+                markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home"))
 
                 if quality == 'audio':
-                    bot.send_audio(
-                        call.message.chat.id, 
-                        audio=download_url, 
-                        title="TikTok Audio Stream", 
-                        performer="MakeChapa Bot"
-                    )
+                    bot.send_audio(call.message.chat.id, audio=download_url, title="TikTok Audio")
                 else:
-                    bot.send_video(
-                        call.message.chat.id, 
-                        video=download_url
-                    )
+                    bot.send_video(call.message.chat.id, video=download_url)
 
                 bot.edit_message_text("✅ Download Complete!", call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
             else:
-                bot.edit_message_text("❌ Could not extract download link.", call.message.chat.id, call.message.message_id)
+                bot.edit_message_text("❌ Could not extract video link.", call.message.chat.id, call.message.message_id)
         else:
-            bot.edit_message_text("❌ API Error. Please try a different TikTok link.", call.message.chat.id, call.message.message_id)
+            bot.edit_message_text("❌ API Error. Try another link.", call.message.chat.id, call.message.message_id)
     except Exception:
-        bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
+        bot.edit_message_text("❌ Connection error.", call.message.chat.id, call.message.message_id)
 
 # ----------------------------------------------------
-# 7. FLASK WEB SERVER FOR RENDER (KEEPS BOT FREE & ALIVE)
+# 7. KEEP ALIVE FLASK SERVER FOR RENDER
 # ----------------------------------------------------
-app = Flask(__name__, template_folder='.')
+app = Flask(__name__)
 
 @app.route('/')
 def home():
-    return render_template('index.html')
+    return "Bot is running!"
 
 def run_flask():
     app.run(host="0.0.0.0", port=10000)
@@ -311,6 +275,4 @@ def run_flask():
 if __name__ == "__main__":
     flask_thread = threading.Thread(target=run_flask)
     flask_thread.start()
-
-    print("Bot and Web Server running successfully...")
     bot.infinity_polling()
