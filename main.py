@@ -5,7 +5,7 @@ import telebot
 from flask import Flask, render_template
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
 
-BOT_TOKEN = "7756185675:AAFFB918jGk8XW60oA1n9V7N8W42p0v614w"
+BOT_TOKEN = "8913902406:AAE5YB6XyXY4JBXbODODwOTl4P-dnV7T2rA"
 API_URL = "https://tikwm.com/api/"
 WEB_APP_URL = "https://yourwebsite.com"
 
