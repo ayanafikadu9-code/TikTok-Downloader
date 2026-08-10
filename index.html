@@ -8,7 +8,7 @@
         body {
             font-family: Arial, sans-serif;
             text-align: center;
-            padding-top: 50px;
+            padding-top: 40px;
             background-color: #111;
             color: #fff;
             margin: 0;
@@ -18,15 +18,6 @@
             color: #ff3b30;
             margin-top: 20px;
         }
-        .hint {
-            color: #999;
-            font-size: 14px;
-            margin-top: 30px;
-            padding: 0 20px;
-        }
-        /* Monetag ad slot. Paste your Monetag ad tag/script here —
-           get it from your Monetag dashboard under your Zone's
-           "Get code" button, then replace this whole div's contents. */
         .ad-slot {
             margin: 30px auto;
             width: 90%;
@@ -40,30 +31,50 @@
             color: #888;
             font-size: 14px;
         }
+        .continue-btn {
+            display: none;
+            margin: 30px auto 0;
+            padding: 14px 32px;
+            font-size: 18px;
+            font-weight: bold;
+            background: #2ea043;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            text-decoration: none;
+        }
     </style>
 </head>
 <body>
 
     <h2>🔥 Please wait while your ad loads...</h2>
-    <p>Keep this page open, then go back to the bot.</p>
+    <p>Stay on this page until the timer finishes.</p>
 
     <div class="ad-slot" id="ad-slot">
-        <!-- Paste Monetag script/tag here -->
+        <!-- Paste your Monetag ad script/tag here, from Monetag
+             dashboard -> your zone -> "Get code". -->
         Ad goes here
     </div>
 
     <div class="timer" id="countdown">15</div>
-    <p class="hint">Once the timer finishes, switch back to Telegram and tap
-        "I have watched the ad".</p>
+
+    <!-- CHANGE_ME: replace with your bot's @username (no @ symbol) -->
+    <a id="continue-btn" class="continue-btn" href="https://t.me/CHANGE_ME_BOT_USERNAME?start=verified">
+        ✅ Continue
+    </a>
 
     <script>
         let timeLeft = 15;
+        const countdownEl = document.getElementById("countdown");
+        const continueBtn = document.getElementById("continue-btn");
+
         let countdownTimer = setInterval(function () {
             timeLeft--;
-            document.getElementById("countdown").innerText = timeLeft;
+            countdownEl.innerText = timeLeft;
             if (timeLeft <= 0) {
                 clearInterval(countdownTimer);
-                document.getElementById("countdown").innerText = "✅ Done — go back to Telegram";
+                countdownEl.style.display = "none";
+                continueBtn.style.display = "inline-block";
             }
         }, 1000);
     </script>
