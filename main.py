@@ -68,7 +68,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 # ----------------------------------------------------
-# 2. TIKTOK LINK HANDLER (AD GATE WITH FULL COLORS)
+# 2. TIKTOK LINK HANDLER (AD GATE & BYPASS CHECK)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -77,6 +77,8 @@ def handle_tiktok_link(message):
     set_user_attr(u_id, "tiktok_url", message.text.strip())
     
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
+    
+    # If user has an active 24-hour pass, skip the ad gate entirely and show qualities!
     if current_time < expiry_time:
         send_quality_options(message.chat.id, get_user_attr(u_id, "lang", "en"))
         return
@@ -271,3 +273,4 @@ def handle_download(call):
 
 print("Bot running successfully...")
 bot.infinity_polling()
+
