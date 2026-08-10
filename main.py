@@ -1,8 +1,13 @@
 import time
+import threading
 import requests
 import telebot
+from flask import Flask, render_template
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, LabeledPrice
-from config import BOT_TOKEN, API_URL, WEB_APP_URL
+
+BOT_TOKEN = "7756185675:AAFFB918jGk8XW60oA1n9V7N8W42p0v614w"
+API_URL = "https://tikwm.com/api/"
+WEB_APP_URL = "https://yourwebsite.com"
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -79,15 +84,15 @@ def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
-    set_user_attr(u_id, "watched_ad", False) # Reset ad view status for new link
+    set_user_attr(u_id, "watched_ad", False)
     
     lang = get_user_attr(u_id, "lang", "en")
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
     has_active_pass = current_time < expiry_time
 
-if not has_active_pass:
+    if not has_active_pass:
         if lang == "am":
-            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰከንድ) – የ 10,000 ቪዲዮ ማውረጃ ፈቃድን አሁን ይክፈቱ!\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ::"
+            gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያ ይመልከቱ (15 ሰከንድ)\n2️⃣ ፕሪሚየም ይግዙ"
             b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
             b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
             b_prem = "⭐ ፕሪሚየም ይግዙ"
@@ -97,7 +102,7 @@ if not has_active_pass:
             b_verify = "✅ Beeksisa Ilaaleera"
             b_prem = "⭐ Piriimiyamii Bitaa"
         else:
-            gate_msg = "🔥 Watch an ad for 15 seconds or get Premium to unlock downloads:"
+            gate_msg = "To continue, watch a short ad (15 sec), skip to web, or buy premium:"
             b_ad = "👁️ Watch ad (15s)"
             b_verify = "✅ I have watched the ad"
             b_prem = "⭐ Buy Premium"
@@ -120,7 +125,6 @@ def handle_verify_ad(call):
     u_id = call.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
     
-    # Check if user actually interacted with the WebApp ad button first
     watched = get_user_attr(u_id, "watched_ad", False)
     if not watched:
         if lang == "am":
@@ -136,7 +140,9 @@ def handle_verify_ad(call):
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
     
     bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
-    
+    send_quality_options(call.message.chat.id, lang)
+
+def send_quality_options(chat_id, lang):
     if lang == "am":
         prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
         b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
@@ -153,29 +159,8 @@ def handle_verify_ad(call):
     markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
-    bot.edit_message_text(prompt_text, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
-
-def send_quality_options(chat_id, lang):
-    if lang == "am":
-        prompt_text = "🎥 የማውረድ አማራጭ ይምረጡ:"
-        b_no_wm, b_wm, b_au = "🎬 ቪዲዮ (ያለ ዋተርማርክ)", "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)", "🎵 ድምፅ ብቻ (MP3)"
-    elif lang == "om":
-
-prompt_text = "🎥 Filannoo buufata filadhaa:"
-        b_no_wm, b_wm, b_au = "🎬 Viidiyoo (Mallattoo Malee)", "🏷️ Viidiyoo (Mallattoo Wajjin)", "🎵 Sagalee Qofa (MP3)"
-    else:
-        prompt_text = "🎥 Choose download option:"
-        b_no_wm, b_wm, b_au = "🎬 Video (No Watermark)", "🏷️ Video (With Watermark)", "🎵 Audio Only (MP3)"
-
-    markup = InlineKeyboardMarkup()
-    markup.add(InlineKeyboardButton(b_no_wm, callback_data="quality_nowatermark", style="success"))
-    markup.add(InlineKeyboardButton(b_wm, callback_data="quality_watermark", style="primary"))
-    markup.add(InlineKeyboardButton(b_au, callback_data="quality_audio", style="primary"))
-    markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
-
     bot.send_message(chat_id, prompt_text, reply_markup=markup, parse_mode="Markdown")
 
-# Track WebApp interaction so users can't bypass verification instantly
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     u_id = message.from_user.id
@@ -195,10 +180,6 @@ def handle_premium_menu(call):
     msg = (
         "🚫 Remove ads\n\n"
         "Download videos without mandatory ads or waiting.\n\n"
-        "Premium includes:\n"
-        "✅ No ads before downloads\n"
-        "✅ High-speed direct servers\n"
-        "✅ Priority support\n\n"
         "Choose how long to remove ads 👇"
     )
     bot.edit_message_text(msg, call.message.chat.id, call.message.message_id, reply_markup=markup, parse_mode="Markdown")
@@ -242,7 +223,7 @@ def handle_successful_payment(message):
 
     bot.send_message(
         message.chat.id, 
-        f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days. Enjoy ad-free downloading!",
+        f"🎉 Payment Received!\n\nYour Premium Subscription is now active for {days} days.",
         parse_mode="Markdown"
     )
 
@@ -255,7 +236,7 @@ def handle_download(call):
     quality = call.data.replace('quality_', '')
     url = get_user_attr(u_id, "tiktok_url")
 
-if not url:
+    if not url:
         bot.edit_message_text("❌ Session expired. Please send the TikTok link again.", call.message.chat.id, call.message.message_id)
         return
 
@@ -315,5 +296,21 @@ if not url:
     except Exception:
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
-print("Modular Bot is starting...")
-bot.infinity_polling()
+# ----------------------------------------------------
+# 7. FLASK WEB SERVER FOR RENDER (KEEPS BOT FREE & ALIVE)
+# ----------------------------------------------------
+app = Flask(__name__, template_folder='.')
+
+@app.route('/')
+def home():
+    return render_template('index.html')
+
+def run_flask():
+    app.run(host="0.0.0.0", port=10000)
+
+if __name__ == "__main__":
+    flask_thread = threading.Thread(target=run_flask)
+    flask_thread.start()
+
+    print("Bot and Web Server running successfully...")
+    bot.infinity_polling()
