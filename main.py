@@ -69,7 +69,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 # ----------------------------------------------------
-# 2. TIKTOK LINK HANDLER (AD GATE)
+# 2. TIKTOK LINK HANDLER (AD GATE WITH VERIFY BUTTON)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -84,44 +84,45 @@ def handle_tiktok_link(message):
 
     lang = get_user_attr(u_id, "lang", "en")
     if lang == "am":
-        gate_msg = "🔥 ለቀጣይ 24 ሰዓት በነፃ ለማውረድ ማስታወቂያውን ይዩ ወይም ፕሪሚየም ይግዙ:"
-        b_ad = "👉 ማስታወቂያ ይመልከቱ (15s)"
+        gate_msg = "🔥 ለማውረድ ማስታወቂያውን ይመልከቱ ወይም ይዝለሉ:"
+        b_ad = "👁️ ማስታወቂያ ይመልከቱ (15s)"
+        b_verify = "✅ ማስታወቂያውን አይቻለሁ / ቀጥል"
         b_prem = "⭐ ፕሪሚየም ይግዙ"
-        b_skip = "⏭️ ይዝለሉ (ወደ ድረ-ገጽ ይሂዱ)"
     elif lang == "om":
-        gate_msg = "🔥 Viidiyoo bilisaan buufachuuf beeksisa ilaalaa ykn piriimiyamii bitaa:"
-        b_ad = "👉 Beeksisa Daawwadhaa (15s)"
+        gate_msg = "🔥 Viidiyoo buufachuuf beeksisa ilaalaa ykn darbaa:"
+        b_ad = "👁️ Beeksisa Daawwadhaa (15s)"
+        b_verify = "✅ Beeksisa ilaaleera / Itti fufaa"
         b_prem = "⭐ Piriimiyamii Bitaa"
-        b_skip = "⏭️ Irra darbi (Marsariitii)"
     else:
-        gate_msg = "To continue, watch a short ad (15 sec), skip to web, or buy premium:"
-        b_ad = "👉 Watch ad (15s)"
+        gate_msg = "🔥 Watch an ad for 15 seconds or click verify to unlock downloads:"
+        b_ad = "👁️ Watch ad (15s)"
+        b_verify = "✅ I have watched the ad / Continue"
         b_prem = "⭐ Buy Premium"
-        b_skip = "⏭️ Skip (Open Web)"
 
     markup = InlineKeyboardMarkup()
-    # 1st Button: Watch Ad (Opens WebApp)
+    # 1. Watch ad button (Opens Web App URL)
     markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger"))
-    # 2nd Button: Buy Premium
+    # 2. Verify button (Instantly unlocks options, just like your first version!)
+    markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad", style="success"))
+    # 3. Buy Premium
     markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-    # 3rd Button: Skip / Web Link Direct Access (Also gives pass when clicked)
-    markup.add(InlineKeyboardButton(b_skip, url=WEB_APP_URL, style="success"))
-    # Home button
+    # 4. Main Menu
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(message.chat.id, gate_msg, reply_markup=markup)
 
 # ----------------------------------------------------
-# 3. WEB APP SIGNAL & SKIP HANDLER (ACTIVATES 24H PASS & SENDS QUALITY OPTIONS)
+# 3. VERIFY AD CALLBACK (ACTIVATES 24H PASS & SENDS QUALITY OPTIONS)
 # ----------------------------------------------------
-@bot.message_handler(content_types=['web_app_data'])
-def handle_webapp_data(message):
-    u_id = message.from_user.id
+@bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
+def handle_verify_ad(call):
+    u_id = call.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400) # 24 Hours pass
     
-    bot.send_message(message.chat.id, "✅ Ad verified successfully! 24-hour pass activated.")
-    send_quality_options(message.chat.id, get_user_attr(u_id, "lang", "en"))
+    bot.answer_callback_query(call.id, "✅ Verified! Loading download options...")
+    bot.delete_message(call.message.chat.id, call.message.message_id)
+    send_quality_options(call.message.chat.id, get_user_attr(u_id, "lang", "en"))
 
 # ----------------------------------------------------
 # 4. QUALITY OPTIONS MENU
