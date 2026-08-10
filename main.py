@@ -1,13 +1,16 @@
+import os
 import time
+import threading
 import requests
 import telebot
+from flask import Flask
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton, LabeledPrice
-from config import BOT_TOKEN, API_URL, WEBSITE_AD_URL, AD_WAIT_SECONDS
+from config import BOT_TOKEN, BOT_USERNAME, API_URL, WEBSITE_AD_URL, AD_WAIT_SECONDS
 
 # NOTE on colored buttons: style="primary"/"success"/"danger" requires
-# Telegram Bot API 9.4+ (Feb 2026) and a matching pyTelegramBotAPI version.
-# If you get a TypeError about an unexpected "style" keyword, run:
-#   pip install -U pyTelegramBotAPI
+# Telegram Bot API 9.4+ (Feb 2026). Make sure requirements.txt pulls a
+# current pyTelegramBotAPI version (see requirements.txt) or the style
+# keyword will be silently ignored and buttons show with no color.
 
 bot = telebot.TeleBot(BOT_TOKEN)
 user_data = {}
@@ -24,12 +27,26 @@ def set_user_attr(user_id, key, value):
 
 
 # ----------------------------------------------------
-# 1. COMMAND: /start
+# 1. COMMAND: /start  (also handles the ?start=verified deep link)
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_start(message):
     u_id = message.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
+
+    # Deep-link payload: t.me/<bot>?start=verified opens as "/start verified"
+    parts = message.text.split(maxsplit=1)
+    payload = parts[1] if len(parts) > 1 else None
+
+    if payload == "verified":
+        set_user_attr(u_id, "ad_pass_expiry", int(time.time()) + 86400)
+        pending_url = get_user_attr(u_id, "tiktok_url")
+        if pending_url:
+            # They already had a link waiting — go straight to quality choice.
+            send_quality_options(message.chat.id, lang)
+            return
+        # No pending link — fall through to the normal welcome message,
+        # ad pass is already active for their next link.
 
     if lang == "am":
         text_msg = "🎬 እንኳን ወደ TikTok ማውረጃ በደህና መጡ!\n\nቪዲዮ ለማውረድ የ TikTok ሊንክ ይላኩ።"
@@ -93,49 +110,45 @@ def handle_tiktok_link(message):
     u_id = message.from_user.id
     current_time = int(time.time())
     set_user_attr(u_id, "tiktok_url", message.text.strip())
-    set_user_attr(u_id, "ad_click_time", None)  # Reset ad-click timer for this new link
 
     lang = get_user_attr(u_id, "lang", "en")
     expiry_time = get_user_attr(u_id, "ad_pass_expiry", 0)
     has_active_pass = current_time < expiry_time
 
     if not has_active_pass:
-        send_ad_gate(message.chat.id, lang)
+        send_ad_gate(message.chat.id, u_id, lang)
     else:
         send_quality_options(message.chat.id, lang)
 
 
-def send_ad_gate(chat_id, lang, edit_message_id=None):
+def send_ad_gate(chat_id, u_id, lang, edit_message_id=None):
+    # This same-origin timestamp powers the manual fallback button below,
+    # in case the deep-link redirect doesn't fire on the user's device.
+    set_user_attr(u_id, "ad_click_time", int(time.time()))
+
     if lang == "am":
-        gate_msg = f"🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\n1️⃣ ማስታወቂያውን ይክፈቱ እና ቢያንስ {AD_WAIT_SECONDS} ሰከንድ ይቆዩ\n2️⃣ ፕሪሚየም ይግዙ – ያለ ምንም ማስታወቂያ የማውረድ ፈቃድ ያግኙ።"
+        gate_msg = "🔥 ለቀጣይ 24 ሰዓት 10,000 ቪዲዮዎችን በነፃ ያውርዱ!\n\nማስታወቂያውን ይክፈቱ እና እስኪያልቅ ይጠብቁ — ራሱ በራሱ ይመለሳል።"
         b_ad = "👁️ ማስታወቂያውን ይክፈቱ"
-        b_verify = "✅ ማስታወቂያ ተመልክቻለሁ"
+        b_fallback = "✅ ተመልሻለሁ ግን አልተፈታም"
         b_prem = "⭐ ፕሪሚየም ይግዙ"
     elif lang == "om":
-        gate_msg = f"🔥 Sa'atii 24 ffaaf viidiyoo 10,000 bilisaan buufadhaa!\n\nBeeksisa banaa, yoo xiqqaate sekondii {AD_WAIT_SECONDS} eegi."
+        gate_msg = "🔥 Sa'atii 24 ffaaf viidiyoo 10,000 bilisaan buufadhaa!\n\nBeeksisa banaa; xumurus ofumaan deebi'a."
         b_ad = "👁️ Beeksisa Banaa"
-        b_verify = "✅ Beeksisa Ilaaleera"
+        b_fallback = "✅ Deebi'eera garuu hin hiikamne"
         b_prem = "⭐ Piriimiyamii Bitaa"
     else:
-        gate_msg = f"🔥 Open the ad link and stay on the page for at least {AD_WAIT_SECONDS} seconds, or get Premium to unlock downloads:"
+        gate_msg = "🔥 Open the ad below. When it finishes and you tap Continue, you'll be sent straight back here unlocked."
         b_ad = "👁️ Open Ad"
-        b_verify = "✅ I have watched the ad"
+        b_fallback = "✅ I'm back but it's still locked"
         b_prem = "⭐ Buy Premium"
 
     markup = InlineKeyboardMarkup()
-    # Real external link (opens in the phone's browser, not a Telegram WebApp) so the ad network sees a real page view.
+    # Real external link — opens the user's real browser so the ad network counts a real view.
     markup.add(InlineKeyboardButton(b_ad, url=WEBSITE_AD_URL, style="danger"))
-    markup.add(InlineKeyboardButton(b_verify, callback_data="/verify_ad", style="success"))
+    # Fallback only — normally unlocking happens automatically via the /start?verified deep link.
+    markup.add(InlineKeyboardButton(b_fallback, callback_data="/verify_ad", style="success"))
     markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
-
-    # url= buttons don't notify the bot when tapped, so we can't know the
-    # exact moment the user opens the ad. As a simple, no-webhook way to
-    # enforce the wait, we start the clock the moment this gate is shown
-    # (the earliest possible tap time). This is generous to the user —
-    # they effectively get the full window from when they see the button.
-    u_id = chat_id  # for private chats, chat_id == user_id
-    set_user_attr(u_id, "ad_click_time", int(time.time()))
 
     if edit_message_id:
         bot.edit_message_text(gate_msg, chat_id, edit_message_id, reply_markup=markup, parse_mode="Markdown")
@@ -144,54 +157,30 @@ def send_ad_gate(chat_id, lang, edit_message_id=None):
 
 
 # ----------------------------------------------------
-# 3b. TRACK WHEN THE USER TAPS "OPEN AD" (url buttons don't fire
-#     handlers, so this is recorded via callback -> button change:
-#     we intercept the tap on the button row instead by wrapping the
-#     ad button in a callback that then hands out the real link)
+# 3b. FALLBACK MANUAL VERIFY (only needed if the deep link didn't fire)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/verify_ad')
-def handle_verify_ad(call):
+def handle_verify_ad_fallback(call):
     u_id = call.from_user.id
     lang = get_user_attr(u_id, "lang", "en")
 
     click_time = get_user_attr(u_id, "ad_click_time")
     current_time = int(time.time())
 
-    # Defensive fallback: this shouldn't normally happen since
-    # send_ad_gate() always stamps ad_click_time when the gate is shown.
-    if click_time is None:
+    if click_time is None or (current_time - click_time) < AD_WAIT_SECONDS:
+        remaining = AD_WAIT_SECONDS - (current_time - click_time) if click_time else AD_WAIT_SECONDS
         if lang == "am":
-            alert_txt = "⚠️ እባክዎ ወደ ኋላ ተመልሰው አገናኙን ይላኩ።"
+            alert_txt = f"⚠️ እባክዎ መጀመሪያ ማስታወቂያውን ይክፈቱ እና ቢያንስ {max(remaining, 1)} ሰከንድ ይቆዩ።"
         elif lang == "om":
-            alert_txt = "⚠️ Maaloo hidhaa deebisanii ergaa."
+            alert_txt = f"⚠️ Maaloo dura beeksisa banaa, sekondii {max(remaining, 1)} eegi."
         else:
-            alert_txt = "⚠️ Something went wrong — please resend the TikTok link."
-        bot.answer_callback_query(call.id, alert_txt, show_alert=True)
-        return
-
-    elapsed = current_time - click_time
-    if elapsed < AD_WAIT_SECONDS:
-        remaining = AD_WAIT_SECONDS - elapsed
-        if lang == "am":
-            alert_txt = f"⏳ እባክዎ {remaining} ተጨማሪ ሰከንድ ይጠብቁ።"
-        elif lang == "om":
-            alert_txt = f"⏳ Maaloo sekondii {remaining} dabalataa eegi."
-        else:
-            alert_txt = f"⏳ Please wait {remaining} more second(s) before verifying."
+            alert_txt = f"⚠️ Please open the ad first and wait at least {max(remaining, 1)} more second(s)."
         bot.answer_callback_query(call.id, alert_txt, show_alert=True)
         return
 
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
-    bot.answer_callback_query(call.id, "✅ Ad verified successfully!")
+    bot.answer_callback_query(call.id, "✅ Verified!")
     send_quality_options(call.message.chat.id, lang, edit_message_id=call.message.message_id)
-
-
-# NOTE: This timer-based check only proves time passed, not that the ad
-# page was actually opened. If you want real "did they open the link"
-# verification, Monetag supports server-side postback URLs (a webhook
-# Monetag calls when someone completes viewing on your page) — tell me
-# and I can wire that into the bot as a proper confirmation step instead
-# of the timer.
 
 
 def send_quality_options(chat_id, lang, edit_message_id=None):
@@ -356,5 +345,24 @@ def handle_download(call):
         bot.edit_message_text("❌ Connection error while downloading. Try again.", call.message.chat.id, call.message.message_id)
 
 
-print("Modular Bot is starting...")
-bot.infinity_polling()
+# ----------------------------------------------------
+# 7. KEEP-ALIVE WEB SERVER (so Render treats this as a real Web Service
+#    and an uptime pinger has something to hit — see hosting notes)
+# ----------------------------------------------------
+app = Flask(__name__)
+
+
+@app.route('/')
+def health():
+    return "Bot is alive!", 200
+
+
+def run_bot():
+    print("Bot polling starting...")
+    bot.infinity_polling()
+
+
+if __name__ == "__main__":
+    threading.Thread(target=run_bot, daemon=True).start()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)
