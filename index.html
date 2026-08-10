@@ -3,91 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader - Ad Verification</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-            background-color: #17212b;
-            color: #ffffff;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-        .container {
-            max-width: 400px;
-            width: 100%;
-        }
-        h2 {
-            margin-bottom: 10px;
-            font-size: 22px;
-        }
-        p {
-            color: #8793a1;
-            font-size: 14px;
-            margin-bottom: 30px;
-        }
-        .timer {
-            font-size: 48px;
-            font-weight: bold;
-            color: #2ea6ff;
-            margin-bottom: 30px;
-        }
-        .btn {
-            background-color: #2ea6ff;
-            color: #ffffff;
-            border: none;
-            border-radius: 8px;
-            padding: 14px 20px;
-            font-size: 16px;
-            font-weight: 600;
-            width: 100%;
-            cursor: pointer;
-            display: none;
-        }
-        .btn:active {
-            opacity: 0.8;
-        }
-    </style>
+    <title>TikTok Downloader Ads</title>
+    <!-- PASTE YOUR MONETAG TAG SCRIPT HERE -->
+     <script src="https://telegram.org/js/telegram-web-app.js"></script>
 </head>
-<body>
-
-    <div class="container">
-        <h2>Ad Verification</h2>
-        <p>Please watch the ad for 15 seconds to unlock your download.</p>
-        <div class="timer" id="count">15</div>
-        <button class="btn" id="doneBtn" onclick="finishTask()">Continue to Bot</button>
-    </div>
+<body style="background: #111; color: #fff; text-align: center; font-family: sans-serif; padding-top: 50px;">
+    <h2>Loading Ad...</h2>
+    <p>Please wait while your ad loads.</p>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.ready();
+        // Initialize Telegram Web App
+        let tg = window.Telegram.WebApp;
         tg.expand();
 
-        let timeLeft = 15;
-        const countEl = document.getElementById('count');
-        const doneBtn = document.getElementById('doneBtn');
-
-        const timer = setInterval(() => {
-            timeLeft--;
-            countEl.textContent = timeLeft;
-
-            if (timeLeft <= 0) {
-                clearInterval(timer);
-                countEl.style.display = 'none';
-                doneBtn.style.display = 'block';
-            }
-        }, 1000);
-
-        function finishTask() {
-            tg.close();
-        }
+        // Optional: Trigger Monetag ad format function here if required by their docs, 
+        // then close or send back data once finished.
     </script>
 </body>
 </html>
