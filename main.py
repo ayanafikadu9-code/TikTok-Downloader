@@ -69,7 +69,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 # ----------------------------------------------------
-# 2. TIKTOK LINK HANDLER (AD GATE WITH 3 BUTTONS)
+# 2. TIKTOK LINK HANDLER (AD GATE)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -104,7 +104,7 @@ def handle_tiktok_link(message):
     markup.add(InlineKeyboardButton(b_ad, web_app=WebAppInfo(url=WEB_APP_URL), style="danger"))
     # 2nd Button: Buy Premium
     markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-    # 3rd Button: Skip / Web Link Direct Access
+    # 3rd Button: Skip / Web Link Direct Access (Also gives pass when clicked)
     markup.add(InlineKeyboardButton(b_skip, url=WEB_APP_URL, style="success"))
     # Home button
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
@@ -112,13 +112,13 @@ def handle_tiktok_link(message):
     bot.send_message(message.chat.id, gate_msg, reply_markup=markup)
 
 # ----------------------------------------------------
-# 3. WEB APP SIGNAL (AUTO-PASS 24 HOURS)
+# 3. WEB APP SIGNAL & SKIP HANDLER (ACTIVATES 24H PASS & SENDS QUALITY OPTIONS)
 # ----------------------------------------------------
 @bot.message_handler(content_types=['web_app_data'])
 def handle_webapp_data(message):
     u_id = message.from_user.id
     current_time = int(time.time())
-    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400) # 24 Hours
+    set_user_attr(u_id, "ad_pass_expiry", current_time + 86400) # 24 Hours pass
     
     bot.send_message(message.chat.id, "✅ Ad verified successfully! 24-hour pass activated.")
     send_quality_options(message.chat.id, get_user_attr(u_id, "lang", "en"))
@@ -146,7 +146,7 @@ def send_quality_options(chat_id, lang):
     bot.send_message(chat_id, prompt_text, reply_markup=markup)
 
 # ----------------------------------------------------
-# 5. PREMIUM SUBSCRIPTION DURATION MENU (1M, 3M, 6M, 1Y)
+# 5. PREMIUM SUBSCRIPTION DURATION MENU
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
 def handle_premium_menu(call):
