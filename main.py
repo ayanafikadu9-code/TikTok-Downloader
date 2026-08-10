@@ -16,7 +16,7 @@ def set_user_attr(user_id, key, value):
     user_data[user_id][key] = value
 
 # ----------------------------------------------------
-# 1. /START & LANGUAGE SELECTION (WITH COLORS)
+# 1. /START & LANGUAGE SELECTION (FULLY COLORED)
 # ----------------------------------------------------
 @bot.message_handler(commands=['start'])
 def send_start(message):
@@ -69,7 +69,7 @@ def handle_language(call):
         bot.edit_message_text(confirm_text, call.message.chat.id, call.message.message_id, reply_markup=markup)
 
 # ----------------------------------------------------
-# 2. TIKTOK LINK HANDLER (AD GATE WITH COLOR BUTTONS)
+# 2. TIKTOK LINK HANDLER (AD GATE WITH FULL COLORS)
 # ----------------------------------------------------
 @bot.message_handler(func=lambda msg: msg.text and ('tiktok.com' in msg.text.lower() or 'vt.tiktok.com' in msg.text.lower()))
 def handle_tiktok_link(message):
@@ -100,13 +100,9 @@ def handle_tiktok_link(message):
         b_prem = "⭐ Buy Premium"
 
     markup = InlineKeyboardMarkup()
-    # 1. 15s Bot Countdown Button (Triggers live countdown inside the bot)
     markup.add(InlineKeyboardButton(b_ad, callback_data="start_countdown", style="danger"))
-    # 2. Skip/Open Web Button (Opens web link and unlocks pass)
     markup.add(InlineKeyboardButton(b_skip, url=WEB_APP_URL, style="success"))
-    # 3. Buy Premium Button
     markup.add(InlineKeyboardButton(b_prem, callback_data="/buy_premium", style="primary"))
-    # 4. Main Menu Button
     markup.add(InlineKeyboardButton("🏠 Main Menu", callback_data="/btn_home", style="danger"))
 
     bot.send_message(message.chat.id, gate_msg, reply_markup=markup)
@@ -120,7 +116,6 @@ def handle_ad_countdown(call):
     chat_id = call.message.chat.id
     msg_id = call.message.message_id
 
-    # 15s Countdown sequence
     for remaining in range(14, 0, -1):
         try:
             bot.edit_message_text(
@@ -133,11 +128,9 @@ def handle_ad_countdown(call):
         except Exception:
             pass
 
-    # Activate 24-hour pass
     current_time = int(time.time())
     set_user_attr(u_id, "ad_pass_expiry", current_time + 86400)
 
-    # Delete countdown message and send quality options
     try:
         bot.delete_message(chat_id, msg_id)
     except Exception:
@@ -147,7 +140,7 @@ def handle_ad_countdown(call):
     send_quality_options(chat_id, get_user_attr(u_id, "lang", "en"))
 
 # ----------------------------------------------------
-# 4. QUALITY OPTIONS MENU (WITH COLOR BUTTONS)
+# 4. QUALITY OPTIONS MENU (FULLY COLORED)
 # ----------------------------------------------------
 def send_quality_options(chat_id, lang):
     if lang == "am":
@@ -169,7 +162,7 @@ def send_quality_options(chat_id, lang):
     bot.send_message(chat_id, prompt_text, reply_markup=markup)
 
 # ----------------------------------------------------
-# 5. PREMIUM SUBSCRIPTION DURATION MENU (WITH COLOR BUTTONS)
+# 5. PREMIUM SUBSCRIPTION DURATION MENU (FULLY COLORED)
 # ----------------------------------------------------
 @bot.callback_query_handler(func=lambda call: call.data == '/buy_premium')
 def handle_premium_menu(call):
