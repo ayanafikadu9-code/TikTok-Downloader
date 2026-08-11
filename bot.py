@@ -1,12 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/init/env python3
 """
-TikTok Downloader Telegram Bot - ENHANCED
-Features:
-- VERTICAL language selection with COLORED buttons
-- Strict ad verification - MUST watch 15 seconds
-- Connected to ad page with job tracking
-- Automatic video download after verification
-- Premium pass: 100 Telegram Stars = LIFETIME access
+TikTok Downloader Telegram Bot - Streamlined Flow
+- Clean language selection
+- Direct Ad Gate (Watch Ad / Lifetime Premium)
+- Auto-delivery of file upon ad completion or premium status
+- Quality selection with Watermark & Audio options
 """
 
 import os
@@ -67,8 +65,8 @@ def init_db():
                 user_id INTEGER PRIMARY KEY,
                 language TEXT DEFAULT 'en',
                 last_tiktok_url TEXT,
-                is_premium BOOLEAN DEFAULT 0,
-                premium_expires_at INTEGER
+                is_lifetime_premium BOOLEAN DEFAULT 0,
+                pass_expires_at INTEGER
             )
         """)
         c.execute("""
@@ -79,8 +77,7 @@ def init_db():
                 tiktok_url TEXT,
                 status TEXT,
                 verified BOOLEAN DEFAULT 0,
-                created_at INTEGER,
-                verified_at INTEGER
+                created_at INTEGER
             )
         """)
         conn.commit()
@@ -104,31 +101,39 @@ def set_user_language(user_id: int, lang: str):
 
 def get_user(user_id: int) -> dict:
     row = _db_exec(
-        "SELECT user_id, language, last_tiktok_url, is_premium, premium_expires_at FROM users WHERE user_id=?",
+        "SELECT user_id, language, last_tiktok_url, is_lifetime_premium, pass_expires_at FROM users WHERE user_id=?",
         (user_id,),
         fetchone=True
     )
     if not row:
         _db_exec("INSERT OR IGNORE INTO users (user_id, language) VALUES (?, ?)", (user_id, "en"))
-        return {"user_id": user_id, "language": "en", "last_tiktok_url": None, "is_premium": False, "premium_expires_at": None}
+        return {"user_id": user_id, "language": "en", "last_tiktok_url": None, "is_lifetime_premium": False, "pass_expires_at": None}
     return {
         "user_id": row[0],
         "language": row[1] or "en",
         "last_tiktok_url": row[2],
-        "is_premium": bool(row[3]),
-        "premium_expires_at": row[4]
+        "is_lifetime_premium": bool(row[3]),
+        "pass_expires_at": row[4]
     }
 
 def set_user_tiktok_url(user_id: int, url: str):
     _db_exec("UPDATE users SET last_tiktok_url=? WHERE user_id=?", (url, user_id))
 
-def set_user_premium(user_id: int):
-    """Grant LIFETIME premium (no expiry)"""
-    _db_exec("UPDATE users SET is_premium=1, premium_expires_at=NULL WHERE user_id=?", (user_id,))
+def set_lifetime_premium(user_id: int):
+    _db_exec("UPDATE users SET is_lifetime_premium=1 WHERE user_id=?", (user_id,))
 
-def user_has_premium(user_id: int) -> bool:
+def grant_temporary_pass(user_id: int, duration_hours: int = 24):
+    expires = int(time.time()) + (duration_hours * 3600)
+    _db_exec("UPDATE users SET pass_expires_at=? WHERE user_id=?", (expires, user_id))
+
+def user_has_access(user_id: int) -> bool:
     u = get_user(user_id)
-    return u.get("is_premium", False)
+    if u.get("is_lifetime_premium"):
+        return True
+    expires = u.get("pass_expires_at")
+    if expires and int(time.time()) < expires:
+        return True
+    return False
 
 def create_ad_job(user_id: int, chat_id: int, tiktok_url: str) -> str:
     job_id = secrets.token_hex(16)
@@ -157,12 +162,9 @@ def get_ad_job(job_id: str) -> dict:
     }
 
 def mark_job_verified(job_id: str):
-    _db_exec(
-        "UPDATE ad_jobs SET verified=1, status='verified', verified_at=? WHERE job_id=?",
-        (int(time.time()), job_id)
-    )
+    _db_exec("UPDATE ad_jobs SET verified=1, status='verified' WHERE job_id=?", (job_id,))
 
-# ============ TELEGRAM API ============
+# ============ TELEGRAM API HELPERS ============
 TELEGRAM_API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
 
 def send_telegram_message(chat_id: int, text: str, reply_markup: Optional[InlineKeyboardMarkup] = None):
@@ -194,46 +196,39 @@ def send_file_via_bot(chat_id: int, file_path: str, file_type: str = "video", ca
         r.raise_for_status()
         return r.json()
 
-# ============ LANGUAGE STRINGS ============
+# ============ LOCALIZED STRINGS ============
 LANG_STRINGS = {
     "en": {
-        "welcome": "🌐 <b>Choose your language:</b>",
-        "lang_set": "✅ Language set to <b>English</b>\n\nNow send your TikTok link.",
-        "send_link": "❌ Please send a valid TikTok link.",
-        "link_received": "✅ TikTok link saved!\n\n👇 Choose below:",
-        "verified": "✅ Ad verified! Choose format:",
-        "premium_ok": "✅ LIFETIME Premium activated! No ads ever! 🎉",
-        "premium_desc": "Remove ads FOREVER - Download unlimited videos!",
-        "processing": "⏳ Downloading...",
-        "premium_active": "⭐ You have LIFETIME Premium! No ads needed.",
+        "welcome": "🌐 <b>Please choose your language:</b>",
+        "lang_set": "✅ Language set to <b>English</b>.\n\nNow send your TikTok link!",
+        "send_link": "❌ Please send a valid TikTok video link.",
+        "link_received": "📥 <b>TikTok link received!</b>\n\nChoose an option below to proceed:",
+        "quality_prompt": "🎉 <b>Ad completed!</b> Choose your preferred format:",
+        "premium_success": "⭐ **Lifetime Premium Activated!** Enjoy unlimited downloads without ads forever.",
+        "processing": "⏳ Downloading your file, please wait..."
     },
     "am": {
-        "welcome": "🌐 <b>ቋንቋዎን ይምረጡ:</b>",
-        "lang_set": "✅ ቋንቋ ወደ <b>አማርኛ</b> ተቀይሯል\n\nአሁን የTikTok ሊንክ ይላኩ።",
-        "send_link": "❌ እባክዎ ትክክለኛ TikTok ሊንክ ይላኩ።",
-        "link_received": "✅ TikTok ሊንክ ተወስጇል!\n\n👇 ከዚህ በታች ይምረጡ:",
-        "verified": "✅ ad ተረጋገጠ! ቅርጸት ይምረጡ:",
-        "premium_ok": "✅ ለዕለት ፕሪሚየም ነቅተዋል! ምንም ads ሌላ! 🎉",
-        "premium_desc": "ቢሌንዚስ ወዲ ምንም ads - ማግኔታውያን ቪዲዮወች ያወርዱ!",
-        "processing": "⏳ ያወርዳል...",
-        "premium_active": "⭐ LIFETIME Premium ተሰጥቶዎታል! ads ሌላ።",
+        "welcome": "🌐 <b>እባክዎ ቋንቋዎን ይምረጡ:</b>",
+        "lang_set": "✅ ቋንቋዎ ወደ <b>አማርኛ</b> ተቀይሯል።\n\nአሁን የTikTok ሊንክ ይላኩ!",
+        "send_link": "❌ እባክዎ ትክክለኛ የTikTok ሊንክ ይላኩ።",
+        "link_received": "📥 <b>የTikTok ሊንክ ተቀብለናል!</b>\n\nከታች ካሉት አማራጮች አንዱን ይምረጡ:",
+        "quality_prompt": "🎉 <b>ማስታወቂያው ተጠናቋል!</b> የሚፈልጉትን ቅርጸት ይምረጡ:",
+        "premium_success": "⭐ **የልዩ ዕድል (Lifetime) ፕሪሚየም ነቅቷል!** ያለ ማስታወቂያ ለዘላለም ያውርዱ።",
+        "processing": "⏳ እየተወረደ ነው, እባክዎ ይጠብቁ..."
     },
     "om": {
-        "welcome": "🌐 <b>Afaan filadhu:</b>",
-        "lang_set": "✅ Afaan <b>Afaan Oromoo</b> irra jijjiirame\n\nHar'a linki TikTok ergaa.",
+        "welcome": "🌐 <b>Maaloo afaan filadhu:</b>",
+        "lang_set": "✅ Afaan <b>Afaan Oromoo</b> tti jijjiirameera.\n\nAmma linki TikTok ergaa!",
         "send_link": "❌ Maaloo linki TikTok sirrii ergaa.",
-        "link_received": "✅ Linki TikTok qabsiisuun guutame!\n\n👇 Armaan gaditti filadu:",
-        "verified": "✅ Ad mirkanaa'e! Akaamsaa filadu:",
-        "premium_ok": "✅ Preemiyam LIFETIME hewaa! adsota hin jiru! 🎉",
-        "premium_desc": "Adsota hir'isuudhaan viidiyoota infiniteetti gad fageenyaa!",
-        "processing": "⏳ Gad fageenyaa...",
-        "premium_active": "⭐ Preemiyam LIFETIME qabdu! adsota hin jiru.",
-    },
+        "link_received": "📥 <b>Linki TikTok argameera!</b>\n\nFilannoo armaan gadቲ irraa filadhu:",
+        "quality_prompt": "🎉 <b>Beeksifni xumurameera!</b> Haala barbaaddan filadhu:",
+        "premium_success": "⭐ **Preemiyamii Bara Guutuu (Lifetime) hojjeteera!** Beeksisa malee bilisaan buufadhaa.",
+        "processing": "⏳ Buufachaa jira, maaloo eegaa..."
+    }
 }
 
-# ============ KEYBOARD WITH COLORS ============
+# ============ KEYBOARDS ============
 def make_language_keyboard():
-    """VERTICAL language buttons - each on separate line"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
         [InlineKeyboardButton("🇪🇹 Amharic (አማርኛ)", callback_data="lang_am")],
@@ -241,24 +236,22 @@ def make_language_keyboard():
     ])
 
 def make_ad_gate_keyboard(job_id: str):
-    """Ad gate with colored buttons"""
     ad_url = f"{AD_PAGE_URL}?user_id={{user_id}}&job_id={job_id}&link={{link}}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🔗 Watch Ad (15 sec)", url=ad_url)],
-        [InlineKeyboardButton("⭐ Lifetime Premium (100⭐)", callback_data="buy_lifetime")],
+        [InlineKeyboardButton("📺 Watch Ad (15s)", url=ad_url)],
+        [InlineKeyboardButton("⭐ Buy Lifetime Premium (100 ⭐️)", callback_data="buy_lifetime")],
         [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
     ])
 
 def make_quality_keyboard():
-    """Quality selection - VERTICAL"""
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🎬 Video (No Watermark)", callback_data="quality_no_watermark")],
         [InlineKeyboardButton("🏷️ Video (With Watermark)", callback_data="quality_watermark")],
         [InlineKeyboardButton("🎵 Audio Only (MP3)", callback_data="quality_audio")],
-        [InlineKeyboardButton("◀️ Back", callback_data="cancel")],
+        [InlineKeyboardButton("◀️ Cancel / Start Over", callback_data="cancel")],
     ])
 
-# ============ DOWNLOAD HANDLING ============
+# ============ DOWNLOAD HANDLERS ============
 def call_tikwm_api(tiktok_url: str, mode: str) -> Optional[str]:
     if not TIKWM_API_URL:
         return None
@@ -317,7 +310,7 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
             os.remove(tmp_filename)
     except Exception as e:
         try:
-            send_telegram_message(chat_id, f"❌ Error: {str(e)[:100]}")
+            send_telegram_message(chat_id, f"❌ Error processing download: {str(e)[:100]}")
         except Exception:
             pass
 
@@ -325,11 +318,11 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    get_user(user_id)  # Create user if not exists
+    get_user(user_id)
     
     send_telegram_message(
         chat_id,
-        "Welcome! / ደህና መጡ! / Akam!\n\n🌐 <b>Choose your language:</b>",
+        "🌐 <b>Please choose your language / እባክዎ ቋንቋ ይምረጡ / Afaan filadhu:</b>",
         reply_markup=make_language_keyboard()
     )
 
@@ -344,50 +337,46 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     
     user = get_user(user_id)
     lang = user.get("language", "en")
-    if lang not in LANG_STRINGS:
-        lang = "en"
-    strings = LANG_STRINGS[lang]
+    strings = LANG_STRINGS.get(lang, LANG_STRINGS["en"])
 
-    # Language selection
     if data.startswith("lang_"):
         lang_code = data.split("_", 1)[1]
-        if lang_code not in LANG_STRINGS:
-            lang_code = "en"
         set_user_language(user_id, lang_code)
-        strings = LANG_STRINGS.get(lang_code, LANG_STRINGS["en"])
-        answer_callback_query(query.id, f"✅ Language set!")
-        send_telegram_message(chat_id, strings["lang_set"])
+        new_strings = LANG_STRINGS.get(lang_code, LANG_STRINGS["en"])
+        answer_callback_query(query.id, "✅ Language saved!")
+        send_telegram_message(chat_id, new_strings["lang_set"])
         return
 
     if data == "cancel":
         answer_callback_query(query.id, "Cancelled.")
         try:
-            query.edit_message_text("❌ Operation cancelled.")
+            query.edit_message_text("❌ Action cancelled. Send a new TikTok link anytime.")
         except Exception:
             pass
         return
 
-    # Buy LIFETIME Premium (100 Telegram Stars)
     if data == "buy_lifetime":
-        answer_callback_query(query.id, "Opening payment...")
+        answer_callback_query(query.id, "Opening checkout...")
         await context.bot.send_invoice(
             chat_id=chat_id,
-            title="LIFETIME Premium Pass",
-            description=strings["premium_desc"],
-            payload="lifetime_premium",
-            provider_token="",  # Empty for Telegram Stars
+            title="Lifetime Premium Pass",
+            description="Unlock lifetime unlimited downloads with zero ads!",
+            payload="lifetime_premium_pass",
+            provider_token="",  # Telegram Stars
             currency="XTR",
-            prices=[LabeledPrice("LIFETIME Premium", 10000)]  # 100 Telegram Stars = 10000 (in cents)
+            prices=[LabeledPrice("Lifetime Premium", 10000)]  # 100 Stars = 10000 units
         )
         return
 
-    # Quality selection (AFTER AD VERIFIED OR HAS PREMIUM)
     if data.startswith("quality_"):
         choice = data.split("_", 1)[1]
-        user = get_user(user_id)
+        if not user_has_access(user_id):
+            answer_callback_query(query.id, "Please watch the ad or buy premium first.", alert=True)
+            return
+            
         tiktok_url = user.get("last_tiktok_url")
         if not tiktok_url:
-            answer_callback_query(query.id, "❌ No link found.", alert=True)
+            answer_callback_query(query.id, "❌ No TikTok link found.", alert=True)
             return
         
         answer_callback_query(query.id, strings["processing"])
@@ -404,18 +393,13 @@ async def successful_payment_handler(update: Update, context: ContextTypes.DEFAU
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
     
+    set_lifetime_premium(user_id)
     user = get_user(user_id)
-    lang = user.get("language", "en")
-    if lang not in LANG_STRINGS:
-        lang = "en"
-    strings = LANG_STRINGS[lang]
-    
-    # Grant LIFETIME premium
-    set_user_premium(user_id)
+    strings = LANG_STRINGS.get(user.get("language", "en"), LANG_STRINGS["en"])
     
     send_telegram_message(
         chat_id,
-        strings["premium_ok"] + "\n\n" + strings["verified"],
+        strings["premium_success"] + "\n\n" + strings["quality_prompt"],
         reply_markup=make_quality_keyboard()
     )
 
@@ -426,25 +410,24 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
     
     user = get_user(user_id)
     lang = user.get("language", "en")
-    if lang not in LANG_STRINGS:
-        lang = "en"
-    strings = LANG_STRINGS[lang]
+    strings = LANG_STRINGS.get(lang, LANG_STRINGS["en"])
 
     if TIKTOK_RE.search(text):
         set_user_tiktok_url(user_id, text)
         
-        # Check if user has premium
-        if user_has_premium(user_id):
+        if user_has_access(user_id):
             send_telegram_message(
                 chat_id,
-                strings["premium_active"] + "\n\n" + strings["verified"],
+                strings["quality_prompt"],
                 reply_markup=make_quality_keyboard()
             )
         else:
-            # User needs to watch ad or buy premium
             job_id = create_ad_job(user_id, chat_id, text)
-            ad_gate = make_ad_gate_keyboard(job_id)
-            send_telegram_message(chat_id, strings["link_received"], reply_markup=ad_gate)
+            send_telegram_message(
+                chat_id,
+                strings["link_received"],
+                reply_markup=make_ad_gate_keyboard(job_id)
+            )
         return
 
     send_telegram_message(chat_id, strings["send_link"])
@@ -456,9 +439,9 @@ def health():
 
 @flask_app.route("/verify_ad", methods=["POST"])
 def verify_ad():
-    """Backend endpoint called by index.html after 15 seconds"""
+    """Called automatically by your GitHub Pages ad page after 15 seconds"""
     try:
-        data = request.get_json()
+        data = request.get_json() or {}
         job_id = data.get("job_id")
         user_id = data.get("user_id")
         
@@ -466,27 +449,21 @@ def verify_ad():
         if not job:
             return jsonify({"success": False, "error": "Job not found"}), 404
         
-        if job["user_id"] != user_id:
-            return jsonify({"success": False, "error": "User mismatch"}), 403
-        
-        # Mark as verified
         mark_job_verified(job_id)
+        grant_temporary_pass(int(user_id), duration_hours=24)
         
-        # Grant 24-hour pass (just for this download)
-        # User can watch more ads or buy premium for unlimited
+        # Automatically push the quality menu back to the user on Telegram
+        chat_id = job["chat_id"]
+        user = get_user(int(user_id))
+        strings = LANG_STRINGS.get(user.get("language", "en"), LANG_STRINGS["en"])
         
-        return jsonify({"success": True, "message": "Ad verified!"})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@flask_app.route("/get_job/<job_id>", methods=["GET"])
-def get_job(job_id):
-    """Check job status"""
-    try:
-        job = get_ad_job(job_id)
-        if not job:
-            return jsonify({"success": False}), 404
-        return jsonify({"success": True, "job": job})
+        send_telegram_message(
+            chat_id,
+            strings["quality_prompt"],
+            reply_markup=make_quality_keyboard()
+        )
+        
+        return jsonify({"success": True, "message": "Ad verified & quality menu sent!"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
 
@@ -518,7 +495,7 @@ def main():
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
 
-    print("🤖 Bot started with ad verification & LIFETIME premium!")
+    print("🤖 Bot started successfully!")
     application.run_polling()
 
 if __name__ == "__main__":
