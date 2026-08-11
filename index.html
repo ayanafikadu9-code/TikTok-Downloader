@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader — Ad</title>
+    <title>TikTok Downloader — Ad Verification</title>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -47,26 +47,25 @@
 </head>
 <body>
 
-    <h2>🔥 Please wait while your ad loads...</h2>
-    <p>Stay on this page until the timer finishes.</p>
+    <h2>🔥 Please watch the ad to unlock your video</h2>
+    <p>Your download link will appear when the timer finishes.</p>
 
     <div class="ad-slot" id="ad-slot">
-        <!-- Paste your Monetag ad script/tag here, from Monetag
-             dashboard -> your zone -> "Get code". -->
+        <!-- Paste your Monetag ad script/tag here -->
         Ad goes here
     </div>
 
     <div class="timer" id="countdown">15</div>
 
-    <!-- Corrected link pointing directly to your Telegram bot -->
-    <a id="continue-btn" class="continue-btn" href="https://t.me/TIKTOK_ETbot?start=verified">
-        ✅ Continue
+    <!-- The link points back to your bot with a verified parameter -->
+    <a id="continue-btn" class="continue-btn" href="https://t.me/TIKTOK_ETbot?start=ad_verified">
+        ✅ Verify & Get Video
     </a>
 
     <script>
         let timeLeft = 15;
         const countdownEl = document.getElementById("countdown");
-        const continueBtn = document.getElementById("continue-btn");
+        const continueBtn = document.includeElement || document.getElementById("continue-btn");
 
         let countdownTimer = setInterval(function () {
             timeLeft--;
@@ -74,7 +73,9 @@
             if (timeLeft <= 0) {
                 clearInterval(countdownTimer);
                 countdownEl.style.display = "none";
-                continueBtn.style.display = "inline-block";
+                document.getElementById("continue-btn").style.display = "inline-block";
+                
+                // Optional: Notify your backend server here via fetch() that the user completed the timer
             }
         }, 1000);
     </script>
