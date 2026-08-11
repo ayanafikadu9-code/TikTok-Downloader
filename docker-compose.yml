@@ -1,0 +1,15 @@
+version: "3.8"
+services:
+  bot:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "5000:5000"   # Flask ad page
+    environment:
+      - BOT_TOKEN=${BOT_TOKEN}
+      - HOST=${HOST}
+      - AD_VIDEO_URL=${AD_VIDEO_URL}
+      - ICON_WATCH=${ICON_WATCH}
+      - ICON_PREMIUM=${ICON_PREMIUM}
+    volumes:
+      - ./:/app
