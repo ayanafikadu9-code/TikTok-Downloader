@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
 """
-TikTok Downloader Telegram Bot
+TikTok Downloader Telegram Bot (Fixed Version)
 Features:
-- /start -> language selection (English, Amharic, Afaan Oromoo)
+- /start -> vertical language selection (English, Amharic, Afaan Oromoo)
 - After language chosen -> ask user to send TikTok link
-- When TikTok link received -> show ad gate:
-    * URL button to your ad page (GitHub Pages)
-    * "Verify / I have watched the ad" button (grants 24h pass)
-    * "Buy Premium" button (links to premium page)
-- After verify -> immediately show quality menu:
-    * 🎬 Video (No Watermark)
-    * 🏷️ Video (With Watermark)
-    * 🎵 Audio Only (MP3)
-- On selection -> attempt to get content from TikWM API (if configured) otherwise fallback to yt-dlp
+- When TikTok link received -> show vertical ad gate / premium options
+- Strict ad verification check before unlocking content
+- Vertical quality menu + native Telegram Stars payment integration
 """
 
 import os
@@ -31,12 +25,13 @@ import requests
 from flask import Flask, request, jsonify, render_template_string
 from flask_cors import CORS
 from dotenv import load_dotenv
-from telegram import Update
+from telegram import Update, LabeledPrice
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
     MessageHandler,
     CallbackQueryHandler,
+    PreCheckoutQueryHandler,
     ContextTypes,
     filters,
 )
@@ -49,7 +44,6 @@ if not BOT_TOKEN:
 
 HOST = os.getenv("HOST", "")
 AD_PAGE = os.getenv("AD_PAGE", "https://ayanafikadu9-code.github.io/TikTok-Downloader/")
-PREMIUM_URL = os.getenv("PREMIUM_URL", AD_PAGE)
 
 TIKWM_API_URL = os.getenv("TIKWM_API_URL", "").strip()
 TIKWM_API_KEY = os.getenv("TIKWM_API_KEY", "").strip()
@@ -232,42 +226,33 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
 
 LANG_BUTTONS = {"en": "English", "am": "Amharic (አማርኛ)", "om": "Afaan Oromoo"}
 
+# VERTICAL LAYOUT: Each button is isolated in its own separate list block
 def make_language_keyboard():
     return {
         "inline_keyboard": [
-            [
-                {"text": f"🇬🇧 {LANG_BUTTONS['en']}", "callback_data": "lang_en", "style": "primary"},
-                {"text": f"🇪🇹 {LANG_BUTTONS['am']}", "callback_data": "lang_am", "style": "primary"},
-                {"text": f"🌍 {LANG_BUTTONS['om']}", "callback_data": "lang_om", "style": "primary"},
-            ]
+            [{"text": f"🇬🇧 {LANG_BUTTONS['en']}", "callback_data": "lang_en"}],
+            [{"text": f"🇪🇹 {LANG_BUTTONS['am']}", "callback_data": "lang_am"}],
+            [{"text": f"🌍 {LANG_BUTTONS['om']}", "callback_data": "lang_om"}],
         ]
     }
 
 def make_ad_gate_keyboard():
     return {
         "inline_keyboard": [
-            [
-                {"text": "🔗 Open Ad Page", "url": AD_PAGE, "style": "primary"},
-                {"text": "✅ Verify / I have watched the ad", "callback_data": "verify_ad", "style": "success"},
-            ],
-            [
-                {"text": "⭐ Buy Premium", "url": PREMIUM_URL, "style": "primary"},
-                {"text": "❌ Cancel", "callback_data": "cancel", "style": "danger"},
-            ],
+            [{"text": "🔗 Open Ad Page", "url": AD_PAGE}],
+            [{"text": "✅ Verify / I have watched the ad", "callback_data": "verify_ad"}],
+            [{"text": "⭐ Buy Premium (Pay 5 Stars)", "callback_data": "buy_stars"}],
+            [{"text": "❌ Cancel", "callback_data": "cancel"}],
         ]
     }
 
 def make_quality_keyboard():
     return {
         "inline_keyboard": [
-            [
-                {"text": "🎬 Video (No Watermark)", "callback_data": "quality_no_watermark", "style": "primary"},
-                {"text": "🏷️ Video (With Watermark)", "callback_data": "quality_watermark", "style": "primary"},
-            ],
-            [
-                {"text": "🎵 Audio Only (MP3)", "callback_data": "quality_audio", "style": "primary"},
-                {"text": "◀️ Cancel", "callback_data": "cancel", "style": "danger"},
-            ],
+            [{"text": "🎬 Video (No Watermark)", "callback_data": "quality_no_watermark"}],
+            [{"text": "🏷️ Video (With Watermark)", "callback_data": "quality_watermark"}],
+            [{"text": "🎵 Audio Only (MP3)", "callback_data": "quality_audio"}],
+            [{"text": "◀️ Cancel", "callback_data": "cancel"}],
         ]
     }
 
@@ -285,7 +270,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     if data.startswith("lang_"):
         lang = data.split("_", 1)[1]
         set_user_language(user_id, lang if lang in LANG_BUTTONS else "en")
-        answer_callback_query(query.id, f"Language set.")
+        answer_callback_query(query.id, "Language set.")
         send_raw_message(chat_id, f"Language set to {LANG_BUTTONS.get(lang,'English')}.\nNow please send your TikTok link.")
         return
 
@@ -304,21 +289,56 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         send_raw_message(chat_id, "Verification accepted. Choose the output you want:", reply_markup=make_quality_keyboard())
         return
 
+    if data == "buy_stars":
+        answer_callback_query(query.id, "Loading payment invoice...")
+        title = "Permanent Premium Pass"
+        description = "Unlock instant video downloads without needing to watch ads."
+        payload = "premium-pass-payload"
+        currency = "XTR"  # Telegram Stars currency code
+        prices = [LabeledPrice("Premium Pass", 5)]  # Costs 5 Telegram Stars
+
+        await context.bot.send_invoice(
+            chat_id=chat_id,
+            title=title,
+            description=description,
+            payload=payload,
+            provider_token="",  # Must be empty string for Telegram Stars
+            currency=currency,
+            prices=prices
+        )
+        return
+
     if data.startswith("quality_"):
+        # STRICT AD VERIFICATION CHECK GATE
         if not user_has_valid_pass(user_id):
-            answer_callback_query(query.id, "You need a valid pass. Please open the ad page and press Verify.", alert=True)
+            answer_callback_query(query.id, "⚠️ You must watch the ad and press Verify first!", alert=True)
             return
+        
         choice = data.split("_", 1)[1]
         u = get_user(user_id)
         tiktok_url = u.get("last_tiktok_url")
         if not tiktok_url:
             answer_callback_query(query.id, "No TikTok link found. Send your link first.", alert=True)
             return
+            
         answer_callback_query(query.id, "Processing your request...")
         threading.Thread(target=process_download_job, args=(chat_id, user_id, tiktok_url, choice), daemon=True).start()
         return
 
     answer_callback_query(query.id, "")
+
+async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.pre_checkout_query
+    if query.invoice_payload == "premium-pass-payload":
+        await query.answer(ok=True)
+
+async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+    # Grant long-term access (e.g., 30 days) upon successful star payment
+    expires_at = int((datetime.utcnow() + timedelta(days=30)).timestamp())
+    set_user_pass(user_id, expires_at)
+    send_raw_message(chat_id, "🎉 Payment successful! Premium status active for 30 days. Choose your output format:", reply_markup=make_quality_keyboard())
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
@@ -329,7 +349,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
         set_user_tiktok_url(user_id, text)
         send_raw_message(
             chat_id,
-            "TikTok link saved! To continue, please open the ad page, watch, and press 'Verify / I have watched the ad'.",
+            "TikTok link saved! To unlock this file, please open the ad page, wait for the timer, and click 'Verify / I have watched the ad'.",
             reply_markup=make_ad_gate_keyboard(),
         )
         return
@@ -360,6 +380,8 @@ def main():
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
+    application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
+    application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, text_message_handler))
 
     application.run_polling()
