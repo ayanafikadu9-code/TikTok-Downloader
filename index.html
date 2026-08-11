@@ -5,79 +5,283 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TikTok Downloader — Ad Verification</title>
     <style>
-        body {
-            font-family: Arial, sans-serif;
-            text-align: center;
-            padding-top: 40px;
-            background-color: #111;
-            color: #fff;
+        * {
             margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-        .timer {
-            font-size: 24px;
-            color: #ff3b30;
-            margin-top: 20px;
-        }
-        .ad-slot {
-            margin: 30px auto;
-            width: 90%;
-            max-width: 320px;
-            min-height: 250px;
-            background: #222;
+        
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 8px;
-            color: #888;
-            font-size: 14px;
+            padding: 20px;
         }
-        .continue-btn {
-            display: none;
-            margin: 30px auto 0;
-            padding: 14px 32px;
-            font-size: 18px;
+        
+        .container {
+            background: #1a1a1a;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+            padding: 40px 30px;
+            max-width: 500px;
+            width: 100%;
+            text-align: center;
+            color: #fff;
+        }
+        
+        h1 {
+            font-size: 28px;
+            margin-bottom: 15px;
+            color: #ff3b30;
             font-weight: bold;
-            background: #2ea043;
+        }
+        
+        .subtitle {
+            font-size: 16px;
+            color: #aaa;
+            margin-bottom: 30px;
+            line-height: 1.5;
+        }
+        
+        .ad-slot {
+            width: 100%;
+            min-height: 250px;
+            background: #222;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 30px 0;
+            border: 2px solid #333;
+            font-size: 14px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .timer-section {
+            margin: 30px 0;
+        }
+        
+        .timer-label {
+            font-size: 14px;
+            color: #aaa;
+            margin-bottom: 10px;
+        }
+        
+        .timer {
+            font-size: 48px;
+            font-weight: bold;
+            color: #ff3b30;
+            font-family: 'Courier New', monospace;
+            animation: pulse 1s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+        
+        .button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin-top: 30px;
+        }
+        
+        .verify-btn {
+            display: none;
+            width: 100%;
+            padding: 16px;
+            font-size: 16px;
+            font-weight: bold;
+            background: linear-gradient(135deg, #2ea043 0%, #27a934 100%);
             color: #fff;
             border: none;
-            border-radius: 8px;
+            border-radius: 10px;
             text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(46, 160, 67, 0.3);
+        }
+        
+        .verify-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(46, 160, 67, 0.4);
+            background: linear-gradient(135deg, #27a934 0%, #1fa82b 100%);
+        }
+        
+        .verify-btn:active {
+            transform: translateY(0);
+        }
+        
+        .back-btn {
+            width: 100%;
+            padding: 14px;
+            font-size: 14px;
+            font-weight: bold;
+            background: #333;
+            color: #fff;
+            border: 1px solid #555;
+            border-radius: 10px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .back-btn:hover {
+            background: #444;
+            border-color: #666;
+        }
+        
+        .info-text {
+            font-size: 13px;
+            color: #999;
+            margin-top: 20px;
+            line-height: 1.6;
+        }
+        
+        .status {
+            margin-top: 15px;
+            font-size: 14px;
+            color: #aaa;
+        }
+        
+        .status.loading::before {
+            content: "⏳ ";
+        }
+        
+        .status.complete {
+            color: #2ea043;
+        }
+        
+        .status.complete::before {
+            content: "✅ ";
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 500px) {
+            .container {
+                padding: 30px 20px;
+            }
+            
+            h1 {
+                font-size: 24px;
+            }
+            
+            .timer {
+                font-size: 40px;
+            }
+            
+            .ad-slot {
+                min-height: 200px;
+            }
         }
     </style>
 </head>
 <body>
-
-    <h2>🔥 Please watch the ad to unlock your video</h2>
-    <p>Your download link will appear when the timer finishes.</p>
-
-    <div class="ad-slot" id="ad-slot">
-        <!-- Paste your Monetag ad script/tag here -->
-        Ad goes here
+    <div class="container">
+        <h1>🔥 Watch Ad to Unlock</h1>
+        <p class="subtitle">Your TikTok download will be ready when the timer finishes!</p>
+        
+        <!-- Ad Space -->
+        <div class="ad-slot" id="ad-slot">
+            <!-- Monetag Ad Code Here -->
+            Ad Loading...
+        </div>
+        
+        <!-- Timer Section -->
+        <div class="timer-section">
+            <div class="timer-label">⏱️ Time Remaining:</div>
+            <div class="timer" id="countdown">15</div>
+            <div class="status loading" id="status">Waiting for ad to complete...</div>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="button-container">
+            <button id="continue-btn" class="verify-btn" onclick="handleVerify()">
+                ✅ Verify & Get Your Video
+            </button>
+            <a href="https://t.me/TIKTOK_ETbot" class="back-btn">
+                ◀️ Back to Bot
+            </a>
+        </div>
+        
+        <p class="info-text">
+            💡 <strong>Tip:</strong> Make sure you have an active internet connection. Do not close this tab.
+        </p>
     </div>
-
-    <div class="timer" id="countdown">15</div>
-
-    <!-- The link points back to your bot with a verified parameter -->
-    <a id="continue-btn" class="continue-btn" href="https://t.me/TIKTOK_ETbot?start=ad_verified">
-        ✅ Verify & Get Video
-    </a>
 
     <script>
         let timeLeft = 15;
+        let adWatched = false;
         const countdownEl = document.getElementById("countdown");
-        const continueBtn = document.includeElement || document.getElementById("continue-btn");
+        const continueBtn = document.getElementById("continue-btn");
+        const statusEl = document.getElementById("status");
 
+        // Countdown Timer
         let countdownTimer = setInterval(function () {
             timeLeft--;
             countdownEl.innerText = timeLeft;
+            
             if (timeLeft <= 0) {
                 clearInterval(countdownTimer);
-                countdownEl.style.display = "none";
-                document.getElementById("continue-btn").style.display = "inline-block";
-                
-                // Optional: Notify your backend server here via fetch() that the user completed the timer
+                adWatched = true;
+                countdownEl.innerText = "✅ Complete!";
+                continueBtn.style.display = "block";
+                statusEl.textContent = "Ad completed! Click button below to verify.";
+                statusEl.classList.add("complete");
+                statusEl.classList.remove("loading");
             }
         }, 1000);
+
+        // Handle Verify Button
+        function handleVerify() {
+            if (!adWatched) {
+                alert("⏳ Please wait for the timer to finish first!");
+                return;
+            }
+            
+            // Record verification in localStorage
+            localStorage.setItem("adVerified", "true");
+            localStorage.setItem("verifyTime", new Date().getTime());
+            
+            // Redirect back to bot with verified parameter
+            window.location.href = "https://t.me/TIKTOK_ETbot?start=ad_verified";
+        }
+
+        // Prevent accidental back navigation during ad watch
+        window.addEventListener("beforeunload", function (e) {
+            if (!adWatched) {
+                e.preventDefault();
+                e.returnValue = "Ad not completed yet. Are you sure?";
+                return "Ad not completed yet.";
+            }
+        });
+
+        // Check if already verified in this session
+        window.addEventListener("load", function () {
+            const lastVerify = localStorage.getItem("verifyTime");
+            if (lastVerify) {
+                const timeSinceVerify = new Date().getTime() - parseInt(lastVerify);
+                // If verified within last 1 hour, skip ad
+                if (timeSinceVerify < 3600000) {
+                    document.body.innerHTML = `
+                        <div class="container">
+                            <h1>✅ Already Verified!</h1>
+                            <p class="subtitle">Your session is still active.</p>
+                            <div class="button-container">
+                                <a href="https://t.me/TIKTOK_ETbot" class="verify-btn" style="display: block;">
+                                    📲 Go Back to Bot
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                }
+            }
+        });
     </script>
 </body>
 </html>
