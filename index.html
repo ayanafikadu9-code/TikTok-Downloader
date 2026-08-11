@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="monetag" content="28b02dc2f0bf0d606b9d801798cff6c5">
     <title>TikTok Downloader — Watch Ad</title>
     <style>
         * {
@@ -18,62 +19,64 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 12px;
         }
         
         .container {
             background: #1a1a1a;
-            border-radius: 16px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
-            padding: 40px 30px;
-            max-width: 500px;
+            border-radius: 14px;
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.5);
+            padding: 24px 18px;
+            max-width: 460px;
             width: 100%;
             text-align: center;
             color: #fff;
         }
         
         h1 {
-            font-size: 28px;
-            margin-bottom: 15px;
+            font-size: 22px;
+            margin-bottom: 8px;
             color: #ff3b30;
             font-weight: bold;
         }
         
         .subtitle {
-            font-size: 16px;
+            font-size: 13px;
             color: #aaa;
-            margin-bottom: 30px;
-            line-height: 1.5;
+            margin-bottom: 18px;
+            line-height: 1.4;
         }
         
+        /* Larger Ad Slot Container */
         .ad-slot {
             width: 100%;
-            min-height: 280px;
+            min-height: 320px;
             background: #222;
-            border-radius: 12px;
+            border-radius: 10px;
             display: flex;
             align-items: center;
             justify-content: center;
-            margin: 30px 0;
+            margin: 15px 0;
             border: 2px solid #333;
-            font-size: 14px;
+            font-size: 13px;
             color: #666;
             font-style: italic;
             overflow: hidden;
+            position: relative;
         }
         
         .timer-section {
-            margin: 30px 0;
+            margin: 18px 0;
         }
         
         .timer-label {
-            font-size: 14px;
+            font-size: 12px;
             color: #aaa;
-            margin-bottom: 10px;
+            margin-bottom: 4px;
         }
         
         .timer {
-            font-size: 48px;
+            font-size: 36px;
             font-weight: bold;
             color: #ff3b30;
             font-family: 'Courier New', monospace;
@@ -88,34 +91,29 @@
         .button-container {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: 30px;
+            gap: 10px;
+            margin-top: 18px;
         }
         
         .verify-btn {
             display: none;
             width: 100%;
-            padding: 16px;
-            font-size: 16px;
+            padding: 13px;
+            font-size: 15px;
             font-weight: bold;
             background: linear-gradient(135deg, #2ea043 0%, #27a934 100%);
             color: #fff;
             border: none;
-            border-radius: 10px;
+            border-radius: 8px;
             text-decoration: none;
             cursor: pointer;
             transition: all 0.3s ease;
-            box-shadow: 0 4px 15px rgba(46, 160, 67, 0.3);
+            box-shadow: 0 4px 12px rgba(46, 160, 67, 0.3);
         }
         
         .verify-btn:hover:not(:disabled) {
             transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(46, 160, 67, 0.4);
             background: linear-gradient(135deg, #27a934 0%, #1fa82b 100%);
-        }
-        
-        .verify-btn:active:not(:disabled) {
-            transform: translateY(0);
         }
         
         .verify-btn:disabled {
@@ -125,13 +123,13 @@
         
         .back-btn {
             width: 100%;
-            padding: 14px;
-            font-size: 14px;
+            padding: 11px;
+            font-size: 13px;
             font-weight: bold;
             background: #333;
             color: #fff;
             border: 1px solid #555;
-            border-radius: 10px;
+            border-radius: 8px;
             text-decoration: none;
             cursor: pointer;
             transition: all 0.3s ease;
@@ -139,19 +137,18 @@
         
         .back-btn:hover {
             background: #444;
-            border-color: #666;
         }
         
         .info-text {
-            font-size: 13px;
-            color: #999;
-            margin-top: 20px;
-            line-height: 1.6;
+            font-size: 11px;
+            color: #888;
+            margin-top: 14px;
+            line-height: 1.4;
         }
         
         .status {
-            margin-top: 15px;
-            font-size: 14px;
+            margin-top: 8px;
+            font-size: 13px;
             color: #aaa;
         }
         
@@ -174,25 +171,6 @@
         .error::before {
             content: "❌ ";
         }
-        
-        /* Mobile responsiveness */
-        @media (max-width: 500px) {
-            .container {
-                padding: 30px 20px;
-            }
-            
-            h1 {
-                font-size: 24px;
-            }
-            
-            .timer {
-                font-size: 40px;
-            }
-            
-            .ad-slot {
-                min-height: 220px;
-            }
-        }
     </style>
 </head>
 <body>
@@ -200,9 +178,8 @@
         <h1>🔥 Watch Ad to Unlock</h1>
         <p class="subtitle">Your TikTok download will be ready when the timer finishes!</p>
         
-        <!-- Ad Space - Monetag Code Here -->
+        <!-- Ad Space - Monetag Multitag Script can be pasted here -->
         <div class="ad-slot" id="ad-slot">
-            <!-- PASTE YOUR MONETAG AD CODE HERE -->
             Ad is loading... Please wait.
         </div>
         
@@ -235,13 +212,11 @@
         const continueBtn = document.getElementById("continue-btn");
         const statusEl = document.getElementById("status");
         
-        // Get user_id and job_id from URL parameters
         const urlParams = new URLSearchParams(window.location.search);
         const userId = urlParams.get("user_id");
         const jobId = urlParams.get("job_id");
         const tiktokUrl = urlParams.get("link");
 
-        // Countdown Timer - MUST COMPLETE FULLY
         let countdownTimer = setInterval(function () {
             timeLeft--;
             countdownEl.innerText = timeLeft;
@@ -252,13 +227,12 @@
                 countdownEl.innerText = "✅ Complete!";
                 continueBtn.style.display = "block";
                 continueBtn.disabled = false;
-                statusEl.textContent = "Ad completed! Click below to verify and get your video.";
+                statusEl.textContent = "Ad completed! Click below to verify.";
                 statusEl.classList.add("complete");
                 statusEl.classList.remove("loading");
             }
         }, 1000);
 
-        // Handle Verify Button - VERIFY WITH BACKEND
         async function handleVerify() {
             if (!adComplete) {
                 statusEl.textContent = "⏳ Please wait for timer to finish!";
@@ -270,8 +244,7 @@
             statusEl.textContent = "Verifying... Please wait...";
             
             try {
-                // Call bot backend to verify ad completion
-                const response = await fetch("https://your-render-url.onrender.com/verify_ad", {
+                const response = await fetch("https://tiktok-downloader-bot-986c.onrender.com/verify_ad", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify({
@@ -288,7 +261,6 @@
                     statusEl.classList.remove("error");
                     statusEl.classList.add("complete");
                     
-                    // Redirect to bot with verified token
                     setTimeout(() => {
                         window.location.href = `https://t.me/TIKTOK_ETbot?start=ad_verified_${jobId}`;
                     }, 2000);
@@ -305,16 +277,14 @@
             }
         }
 
-        // Prevent tab close during ad watch
         window.addEventListener("beforeunload", function (e) {
             if (!adComplete) {
                 e.preventDefault();
-                e.returnValue = "Ad not completed! Are you sure?";
+                e.returnValue = "Ad not completed!";
                 return "Ad not completed!";
             }
         });
 
-        // Check if parameters exist
         if (!userId || !jobId) {
             statusEl.textContent = "⚠️ Missing parameters. Please go back to bot.";
             statusEl.classList.add("error");
