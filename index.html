@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TikTok Downloader — Ad Verification</title>
+    <title>TikTok Downloader — Watch Ad</title>
     <style>
         * {
             margin: 0;
@@ -48,7 +48,7 @@
         
         .ad-slot {
             width: 100%;
-            min-height: 250px;
+            min-height: 280px;
             background: #222;
             border-radius: 12px;
             display: flex;
@@ -59,6 +59,7 @@
             font-size: 14px;
             color: #666;
             font-style: italic;
+            overflow: hidden;
         }
         
         .timer-section {
@@ -107,14 +108,19 @@
             box-shadow: 0 4px 15px rgba(46, 160, 67, 0.3);
         }
         
-        .verify-btn:hover {
+        .verify-btn:hover:not(:disabled) {
             transform: translateY(-2px);
             box-shadow: 0 6px 20px rgba(46, 160, 67, 0.4);
             background: linear-gradient(135deg, #27a934 0%, #1fa82b 100%);
         }
         
-        .verify-btn:active {
+        .verify-btn:active:not(:disabled) {
             transform: translateY(0);
+        }
+        
+        .verify-btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
         }
         
         .back-btn {
@@ -161,6 +167,14 @@
             content: "✅ ";
         }
         
+        .error {
+            color: #ff3b30;
+        }
+        
+        .error::before {
+            content: "❌ ";
+        }
+        
         /* Mobile responsiveness */
         @media (max-width: 500px) {
             .container {
@@ -176,7 +190,7 @@
             }
             
             .ad-slot {
-                min-height: 200px;
+                min-height: 220px;
             }
         }
     </style>
@@ -186,22 +200,22 @@
         <h1>🔥 Watch Ad to Unlock</h1>
         <p class="subtitle">Your TikTok download will be ready when the timer finishes!</p>
         
-        <!-- Ad Space -->
+        <!-- Ad Space - Monetag Code Here -->
         <div class="ad-slot" id="ad-slot">
-            <!-- Monetag Ad Code Here -->
-            Ad Loading...
+            <!-- PASTE YOUR MONETAG AD CODE HERE -->
+            Ad is loading... Please wait.
         </div>
         
         <!-- Timer Section -->
         <div class="timer-section">
             <div class="timer-label">⏱️ Time Remaining:</div>
             <div class="timer" id="countdown">15</div>
-            <div class="status loading" id="status">Waiting for ad to complete...</div>
+            <div class="status loading" id="status">Watching ad... Do not close this tab!</div>
         </div>
         
         <!-- Action Buttons -->
         <div class="button-container">
-            <button id="continue-btn" class="verify-btn" onclick="handleVerify()">
+            <button id="continue-btn" class="verify-btn" onclick="handleVerify()" disabled>
                 ✅ Verify & Get Your Video
             </button>
             <a href="https://t.me/TIKTOK_ETbot" class="back-btn">
@@ -210,78 +224,103 @@
         </div>
         
         <p class="info-text">
-            💡 <strong>Tip:</strong> Make sure you have an active internet connection. Do not close this tab.
+            💡 <strong>Tip:</strong> Make sure you watch the complete ad. Do not close this tab or refresh!
         </p>
     </div>
 
     <script>
         let timeLeft = 15;
-        let adWatched = false;
+        let adComplete = false;
         const countdownEl = document.getElementById("countdown");
         const continueBtn = document.getElementById("continue-btn");
         const statusEl = document.getElementById("status");
+        
+        // Get user_id and job_id from URL parameters
+        const urlParams = new URLSearchParams(window.location.search);
+        const userId = urlParams.get("user_id");
+        const jobId = urlParams.get("job_id");
+        const tiktokUrl = urlParams.get("link");
 
-        // Countdown Timer
+        // Countdown Timer - MUST COMPLETE FULLY
         let countdownTimer = setInterval(function () {
             timeLeft--;
             countdownEl.innerText = timeLeft;
             
             if (timeLeft <= 0) {
                 clearInterval(countdownTimer);
-                adWatched = true;
+                adComplete = true;
                 countdownEl.innerText = "✅ Complete!";
                 continueBtn.style.display = "block";
-                statusEl.textContent = "Ad completed! Click button below to verify.";
+                continueBtn.disabled = false;
+                statusEl.textContent = "Ad completed! Click below to verify and get your video.";
                 statusEl.classList.add("complete");
                 statusEl.classList.remove("loading");
             }
         }, 1000);
 
-        // Handle Verify Button
-        function handleVerify() {
-            if (!adWatched) {
-                alert("⏳ Please wait for the timer to finish first!");
+        // Handle Verify Button - VERIFY WITH BACKEND
+        async function handleVerify() {
+            if (!adComplete) {
+                statusEl.textContent = "⏳ Please wait for timer to finish!";
+                statusEl.classList.add("error");
                 return;
             }
             
-            // Record verification in localStorage
-            localStorage.setItem("adVerified", "true");
-            localStorage.setItem("verifyTime", new Date().getTime());
+            continueBtn.disabled = true;
+            statusEl.textContent = "Verifying... Please wait...";
             
-            // Redirect back to bot with verified parameter
-            window.location.href = "https://t.me/TIKTOK_ETbot?start=ad_verified";
+            try {
+                // Call bot backend to verify ad completion
+                const response = await fetch("https://your-render-url.onrender.com/verify_ad", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                        user_id: userId,
+                        job_id: jobId,
+                        tiktok_url: tiktokUrl
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusEl.textContent = "✅ Verified! Redirecting to Telegram...";
+                    statusEl.classList.remove("error");
+                    statusEl.classList.add("complete");
+                    
+                    // Redirect to bot with verified token
+                    setTimeout(() => {
+                        window.location.href = `https://t.me/TIKTOK_ETbot?start=ad_verified_${jobId}`;
+                    }, 2000);
+                } else {
+                    statusEl.textContent = "❌ Verification failed. Please try again.";
+                    statusEl.classList.add("error");
+                    continueBtn.disabled = false;
+                }
+            } catch (error) {
+                console.error("Verification error:", error);
+                statusEl.textContent = "❌ Network error. Please try again.";
+                statusEl.classList.add("error");
+                continueBtn.disabled = false;
+            }
         }
 
-        // Prevent accidental back navigation during ad watch
+        // Prevent tab close during ad watch
         window.addEventListener("beforeunload", function (e) {
-            if (!adWatched) {
+            if (!adComplete) {
                 e.preventDefault();
-                e.returnValue = "Ad not completed yet. Are you sure?";
-                return "Ad not completed yet.";
+                e.returnValue = "Ad not completed! Are you sure?";
+                return "Ad not completed!";
             }
         });
 
-        // Check if already verified in this session
-        window.addEventListener("load", function () {
-            const lastVerify = localStorage.getItem("verifyTime");
-            if (lastVerify) {
-                const timeSinceVerify = new Date().getTime() - parseInt(lastVerify);
-                // If verified within last 1 hour, skip ad
-                if (timeSinceVerify < 3600000) {
-                    document.body.innerHTML = `
-                        <div class="container">
-                            <h1>✅ Already Verified!</h1>
-                            <p class="subtitle">Your session is still active.</p>
-                            <div class="button-container">
-                                <a href="https://t.me/TIKTOK_ETbot" class="verify-btn" style="display: block;">
-                                    📲 Go Back to Bot
-                                </a>
-                            </div>
-                        </div>
-                    `;
-                }
-            }
-        });
+        // Check if parameters exist
+        if (!userId || !jobId) {
+            statusEl.textContent = "⚠️ Missing parameters. Please go back to bot.";
+            statusEl.classList.add("error");
+            countdownEl.innerText = "❌";
+            clearInterval(countdownTimer);
+        }
     </script>
 </body>
 </html>
