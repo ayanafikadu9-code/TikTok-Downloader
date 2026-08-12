@@ -39,6 +39,11 @@ AD_PAGE_URL = os.getenv("AD_PAGE_URL", "https://ayanafikadu9-code.github.io/TikT
 TIKWM_API_URL = os.getenv("TIKWM_API_URL", "").strip()
 TIKWM_API_KEY = os.getenv("TIKWM_API_KEY", "").strip()
 
+# Comma-separated Telegram user IDs allowed to use /stats, e.g. "111,222"
+ADMIN_IDS = {
+    int(x) for x in os.getenv("ADMIN_IDS", "").replace(" ", "").split(",") if x.isdigit()
+}
+
 KEEPALIVE_ENABLED = os.getenv("KEEPALIVE_ENABLED", "0") == "1"
 KEEPALIVE_INTERVAL = int(os.getenv("KEEPALIVE_INTERVAL", 300))
 
@@ -72,6 +77,14 @@ def init_db():
                 tiktok_url TEXT,
                 status TEXT,
                 verified BOOLEAN DEFAULT 0,
+                created_at INTEGER
+            )
+        """)
+        c.execute("""
+            CREATE TABLE IF NOT EXISTS downloads (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                mode TEXT,
                 created_at INTEGER
             )
         """)
@@ -158,6 +171,37 @@ def get_ad_job(job_id: str) -> dict:
 
 def mark_job_verified(job_id: str):
     _db_exec("UPDATE ad_jobs SET verified=1, status='verified' WHERE job_id=?", (job_id,))
+
+def log_download(user_id: int, mode: str):
+    _db_exec(
+        "INSERT INTO downloads (user_id, mode, created_at) VALUES (?, ?, ?)",
+        (user_id, mode, int(time.time()))
+    )
+
+def get_bot_stats() -> dict:
+    total_users = _db_exec("SELECT COUNT(*) FROM users", fetchone=True)[0]
+    premium_users = _db_exec("SELECT COUNT(*) FROM users WHERE is_lifetime_premium=1", fetchone=True)[0]
+    ad_views = _db_exec("SELECT COUNT(*) FROM ad_jobs WHERE verified=1", fetchone=True)[0]
+    unique_ad_watchers = _db_exec("SELECT COUNT(DISTINCT user_id) FROM ad_jobs WHERE verified=1", fetchone=True)[0]
+    total_downloads = _db_exec("SELECT COUNT(*) FROM downloads", fetchone=True)[0]
+    video_downloads = _db_exec(
+        "SELECT COUNT(*) FROM downloads WHERE mode IN ('no_watermark', 'watermark')", fetchone=True
+    )[0]
+    audio_downloads = _db_exec("SELECT COUNT(*) FROM downloads WHERE mode='audio'", fetchone=True)[0]
+    day_ago = int(time.time()) - 86400
+    downloads_today = _db_exec(
+        "SELECT COUNT(*) FROM downloads WHERE created_at > ?", (day_ago,), fetchone=True
+    )[0]
+    return {
+        "total_users": total_users,
+        "premium_users": premium_users,
+        "ad_views": ad_views,
+        "unique_ad_watchers": unique_ad_watchers,
+        "total_downloads": total_downloads,
+        "video_downloads": video_downloads,
+        "audio_downloads": audio_downloads,
+        "downloads_today": downloads_today,
+    }
 
 # ============ TELEGRAM API HELPERS ============
 TELEGRAM_API_BASE = f"https://api.telegram.org/bot{BOT_TOKEN}"
@@ -368,6 +412,7 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
 
         if tmp_filename and os.path.exists(tmp_filename):
             os.remove(tmp_filename)
+            log_download(user_id, mode)
     except Exception as e:
         try:
             send_telegram_message(chat_id, f"❌ Error processing download: {str(e)[:100]}")
@@ -375,6 +420,27 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
             pass
 
 # ============ BOT HANDLERS ============
+async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user_id = update.effective_user.id
+    chat_id = update.effective_chat.id
+
+    if user_id not in ADMIN_IDS:
+        return  # silently ignore for non-admins
+
+    s = get_bot_stats()
+    msg = (
+        "📊 <b>Bot Stats</b>\n\n"
+        f"👥 Total users: <b>{s['total_users']}</b>\n"
+        f"⭐ Premium users: <b>{s['premium_users']}</b>\n\n"
+        f"👁️ Ad views (all-time): <b>{s['ad_views']}</b>\n"
+        f"👁️ Unique users who watched an ad: <b>{s['unique_ad_watchers']}</b>\n\n"
+        f"📥 Total downloads delivered: <b>{s['total_downloads']}</b>\n"
+        f"  🎬 Videos: <b>{s['video_downloads']}</b>\n"
+        f"  🎵 Audio: <b>{s['audio_downloads']}</b>\n\n"
+        f"📈 Downloads in last 24h: <b>{s['downloads_today']}</b>"
+    )
+    send_telegram_message(chat_id, msg)
+
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
@@ -562,6 +628,7 @@ def main():
 
     application = ApplicationBuilder().token(BOT_TOKEN).build()
     application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stats", stats_command))
     application.add_handler(CallbackQueryHandler(callback_query_handler))
     application.add_handler(PreCheckoutQueryHandler(pre_checkout_handler))
     application.add_handler(MessageHandler(filters.SUCCESSFUL_PAYMENT, successful_payment_handler))
