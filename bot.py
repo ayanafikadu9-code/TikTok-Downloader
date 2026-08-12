@@ -380,6 +380,17 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     get_user(user_id)
 
+    # The ad page's "Continue" button redirects back here via
+    # t.me/<bot>?start=ad_verified_<job_id>. /verify_ad already pushed the
+    # quality menu the moment the ad was confirmed, so this deep link is
+    # just how the browser hands control back to Telegram — there's
+    # nothing left to do, and showing the language picker again here would
+    # bury the quality menu that was just sent. Skip it for that case.
+    parts = update.message.text.split(maxsplit=1) if update.message and update.message.text else []
+    payload = parts[1] if len(parts) > 1 else None
+    if payload and payload.startswith("ad_verified"):
+        return
+
     send_telegram_message(
         chat_id,
         "🌐 <b>Please choose your language / እባክዎ ቋንቋ ይምረጡ / Afaan filadhu:</b>",
