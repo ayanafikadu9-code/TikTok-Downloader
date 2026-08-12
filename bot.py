@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
 TikTok Downloader Telegram Bot - Strict Ad-Gate Fix with Telegram Stars
+Now with colored buttons (Bot API 9.4) and full EN/AM/OM localization.
 """
 
 import os
@@ -190,7 +191,10 @@ def send_file_via_bot(chat_id: int, file_path: str, file_type: str = "video", ca
         r.raise_for_status()
         return r.json()
 
-# ============ LOCALIZED STRINGS ============
+# ============ LOCALIZED STRINGS (EN / AM / OM) ============
+# Every user-facing string and button label lives here. Add a language by
+# copying one whole block and translating every key — nothing else in the
+# code needs to change.
 LANG_STRINGS = {
     "en": {
         "welcome": "🌐 <b>Please choose your language:</b>",
@@ -199,7 +203,25 @@ LANG_STRINGS = {
         "link_received": "📥 <b>TikTok link received!</b>\n\nChoose an option below to proceed:",
         "quality_prompt": "🎉 <b>Ad completed!</b> Choose your preferred format:",
         "premium_success": "⭐ <b>Lifetime Premium Activated!</b> Enjoy unlimited downloads without ads forever.",
-        "processing": "⏳ Downloading your file, please wait..."
+        "processing": "⏳ Downloading your file, please wait...",
+        "ad_gate_msg": "To continue, watch a short ad (15s) or buy premium:",
+        "cancelled_msg": "❌ Action cancelled. Send a new TikTok link whenever you're ready.",
+        "no_link_found": "❌ No TikTok link found.",
+        "must_watch_ad": "⚠️ You must watch the ad or buy premium first!",
+        "opening_checkout": "Opening checkout...",
+        "job_not_found": "Job not found or expired. Please send the link again.",
+        "premium_title": "Lifetime Premium Pass",
+        "premium_desc": "Unlock lifetime unlimited downloads with zero ads!",
+        "btn_watch_ad": "👉 Watch Ad (15s)",
+        "btn_buy_premium": "⭐ Buy Lifetime Premium (100 ⭐)",
+        "btn_cancel": "❌ Cancel",
+        "btn_video_nowm": "🎬 Video (No Watermark)",
+        "btn_video_wm": "🏷️ Video (With Watermark)",
+        "btn_audio": "🎵 Audio Only (MP3)",
+        "btn_start_over": "◀️ Cancel / Start Over",
+        "btn_lang_en": "🇬🇧 English",
+        "btn_lang_am": "🇪🇹 Amharic (አማርኛ)",
+        "btn_lang_om": "🌍 Afaan Oromoo",
     },
     "am": {
         "welcome": "🌐 <b>እባክዎ ቋንቋዎን ይምረጡ:</b>",
@@ -208,41 +230,85 @@ LANG_STRINGS = {
         "link_received": "📥 <b>የTikTok ሊንክ ተቀብለናል!</b>\n\nከታች ካሉት አማራጮች አንዱን ይምረጡ:",
         "quality_prompt": "🎉 <b>ማስታወቂያው ተጠናቋል!</b> የሚፈልጉትን ቅርጸት ይምረጡ:",
         "premium_success": "⭐ <b>የልዩ ዕድል (Lifetime) ፕሪሚየም ነቅቷል!</b> ያለ ማስታወቂያ ለዘላለም ያውርዱ።",
-        "processing": "⏳ እየተወረደ ነው, እባክዎ ይጠብቁ..."
+        "processing": "⏳ እየተወረደ ነው, እባክዎ ይጠብቁ...",
+        "ad_gate_msg": "ለመቀጠል፣ አጭር ማስታወቂያ (15 ሰከንድ) ይመልከቱ ወይም ፕሪሚየም ይግዙ:",
+        "cancelled_msg": "❌ ተሰርዟል። ዝግጁ ሲሆኑ አዲስ የTikTok ሊንክ ይላኩ።",
+        "no_link_found": "❌ የTikTok ሊንክ አልተገኘም።",
+        "must_watch_ad": "⚠️ መጀመሪያ ማስታወቂያውን መመልከት ወይም ፕሪሚየም መግዛት አለብዎት!",
+        "opening_checkout": "ክፍያ በመክፈት ላይ...",
+        "job_not_found": "ስራው አልተገኘም ወይም ጊዜው አልፏል። እባክዎ ሊንኩን እንደገና ይላኩ።",
+        "premium_title": "የልዩ ዕድል (Lifetime) ፕሪሚየም",
+        "premium_desc": "ያለ ምንም ማስታወቂያ ለዘላለም ያልተገደበ ማውረድ ይክፈቱ!",
+        "btn_watch_ad": "👉 ማስታወቂያ ይመልከቱ (15s)",
+        "btn_buy_premium": "⭐ የልዩ ዕድል ፕሪሚየም ይግዙ (100 ⭐)",
+        "btn_cancel": "❌ ሰርዝ",
+        "btn_video_nowm": "🎬 ቪዲዮ (ያለ ዋተርማርክ)",
+        "btn_video_wm": "🏷️ ቪዲዮ (ከዋተርማርክ ጋር)",
+        "btn_audio": "🎵 ድምፅ ብቻ (MP3)",
+        "btn_start_over": "◀️ ሰርዝ / እንደገና ጀምር",
+        "btn_lang_en": "🇬🇧 English",
+        "btn_lang_am": "🇪🇹 Amharic (አማርኛ)",
+        "btn_lang_om": "🌍 Afaan Oromoo",
     },
     "om": {
         "welcome": "🌐 <b>Maaloo afaan filadhu:</b>",
         "lang_set": "✅ Afaan <b>Afaan Oromoo</b> tti jijjiirameera.\n\nAmma linki TikTok ergaa!",
         "send_link": "❌ Maaloo linki TikTok sirrii ergaa.",
-        "link_received": "📥 <b>Linki TikTok argameera!</b>\n\nFilannoo armaan gadቲ irraa filadhu:",
+        "link_received": "📥 <b>Linki TikTok argameera!</b>\n\nFilannoo armaan gadii irraa filadhu:",
         "quality_prompt": "🎉 <b>Beeksifni xumurameera!</b> Haala barbaaddan filadhu:",
         "premium_success": "⭐ <b>Preemiyamii Bara Guutuu (Lifetime) hojjeteera!</b> Beeksisa malee bilisaan buufadhaa.",
-        "processing": "⏳ Buufachaa jira, maaloo eegaa..."
-    }
+        "processing": "⏳ Buufachaa jira, maaloo eegaa...",
+        "ad_gate_msg": "Itti fufuuf, beeksisa gabaabaa (sekondii 15) ilaali ykn piriimiyamii bitaa:",
+        "cancelled_msg": "❌ Haqameera. Yeroo qophooftan linki TikTok haaraa ergaa.",
+        "no_link_found": "❌ Linki TikTok hin argamne.",
+        "must_watch_ad": "⚠️ Dura beeksisa ilaaluu ykn piriimiyamii bituu qabdu!",
+        "opening_checkout": "Kaffaltii banaa jira...",
+        "job_not_found": "Hojiin hin argamne ykn yeroon isaa darbeera. Maaloo linki deebisanii ergaa.",
+        "premium_title": "Piriimiyamii Bara Guutuu",
+        "premium_desc": "Beeksisa tokko malee buufata bara guutuu bilisaan banaa!",
+        "btn_watch_ad": "👉 Beeksisa Ilaali (15s)",
+        "btn_buy_premium": "⭐ Piriimiyamii Bara Guutuu Bitaa (100 ⭐)",
+        "btn_cancel": "❌ Haqi",
+        "btn_video_nowm": "🎬 Viidiyoo (Mallattoo Malee)",
+        "btn_video_wm": "🏷️ Viidiyoo (Mallattoo Wajjin)",
+        "btn_audio": "🎵 Sagalee Qofa (MP3)",
+        "btn_start_over": "◀️ Haqi / Irra Deebi'ii Jalqabi",
+        "btn_lang_en": "🇬🇧 English",
+        "btn_lang_am": "🇪🇹 Amharic (አማርኛ)",
+        "btn_lang_om": "🌍 Afaan Oromoo",
+    },
 }
+
+
+def strings_for(lang: str) -> dict:
+    return LANG_STRINGS.get(lang, LANG_STRINGS["en"])
+
 
 # ============ KEYBOARDS ============
 def make_language_keyboard():
+    s = LANG_STRINGS["en"]  # language names are shown the same regardless of current language
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
-        [InlineKeyboardButton("🇪🇹 Amharic (አማርኛ)", callback_data="lang_am")],
-        [InlineKeyboardButton("🌍 Afaan Oromoo", callback_data="lang_om")],
+        [InlineKeyboardButton(s["btn_lang_en"], callback_data="lang_en", style="primary")],
+        [InlineKeyboardButton(s["btn_lang_am"], callback_data="lang_am", style="success")],
+        [InlineKeyboardButton(s["btn_lang_om"], callback_data="lang_om", style="primary")],
     ])
 
-def make_ad_gate_keyboard(user_id: int, job_id: str, link: str):
+def make_ad_gate_keyboard(user_id: int, job_id: str, link: str, lang: str):
+    s = strings_for(lang)
     web_app_url = f"{AD_PAGE_URL}?user_id={user_id}&job_id={job_id}&link={requests.utils.quote(link)}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("👉 Watch Ad (15s)", web_app=WebAppInfo(url=web_app_url))],
-        [InlineKeyboardButton("⭐ Buy Lifetime Premium (100 ⭐)", callback_data="buy_lifetime")],
-        [InlineKeyboardButton("❌ Cancel / Watch Ad", web_app=WebAppInfo(url=web_app_url))],
+        [InlineKeyboardButton(s["btn_watch_ad"], web_app=WebAppInfo(url=web_app_url), style="danger")],
+        [InlineKeyboardButton(s["btn_buy_premium"], callback_data="buy_lifetime", style="primary")],
+        [InlineKeyboardButton(s["btn_cancel"], callback_data="cancel", style="danger")],
     ])
 
-def make_quality_keyboard():
+def make_quality_keyboard(lang: str):
+    s = strings_for(lang)
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("🎬 Video (No Watermark)", callback_data="quality_no_watermark")],
-        [InlineKeyboardButton("🏷️ Video (With Watermark)", callback_data="quality_watermark")],
-        [InlineKeyboardButton("🎵 Audio Only (MP3)", callback_data="quality_audio")],
-        [InlineKeyboardButton("◀️ Cancel / Start Over", callback_data="cancel")],
+        [InlineKeyboardButton(s["btn_video_nowm"], callback_data="quality_no_watermark", style="success")],
+        [InlineKeyboardButton(s["btn_video_wm"], callback_data="quality_watermark", style="primary")],
+        [InlineKeyboardButton(s["btn_audio"], callback_data="quality_audio", style="primary")],
+        [InlineKeyboardButton(s["btn_start_over"], callback_data="cancel", style="danger")],
     ])
 
 # ============ DOWNLOAD HANDLERS ============
@@ -274,7 +340,7 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
     try:
         dl_url = call_tikwm_api(tiktok_url, mode) if TIKWM_API_URL else None
         tmp_filename = None
-        
+
         if dl_url:
             ext = "mp3" if mode == "audio" else "mp4"
             tmp_filename = f"/tmp/{user_id}_{int(time.time())}.{ext}"
@@ -299,7 +365,7 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
                 if os.path.exists(out_path):
                     send_file_via_bot(chat_id, out_path, file_type="video", caption="✅ Here is your video!")
                     tmp_filename = out_path
-        
+
         if tmp_filename and os.path.exists(tmp_filename):
             os.remove(tmp_filename)
     except Exception as e:
@@ -310,10 +376,10 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
 
 # ============ BOT HANDLERS ============
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user_id = update.effective_user.id
     chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
     get_user(user_id)
-    
+
     send_telegram_message(
         chat_id,
         "🌐 <b>Please choose your language / እባክዎ ቋንቋ ይምረጡ / Afaan filadhu:</b>",
@@ -324,56 +390,56 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     query = update.callback_query
     if not query:
         return
-    
+
     data = query.data or ""
     user_id = query.from_user.id
     chat_id = query.message.chat.id if query.message else user_id
-    
+
     user = get_user(user_id)
     lang = user.get("language", "en")
-    strings = LANG_STRINGS.get(lang, LANG_STRINGS["en"])
+    s = strings_for(lang)
 
     if data.startswith("lang_"):
         lang_code = data.split("_", 1)[1]
         set_user_language(user_id, lang_code)
-        new_strings = LANG_STRINGS.get(lang_code, LANG_STRINGS["en"])
-        answer_callback_query(query.id, "✅ Language saved!")
-        send_telegram_message(chat_id, new_strings["lang_set"])
+        new_s = strings_for(lang_code)
+        answer_callback_query(query.id, "✅")
+        send_telegram_message(chat_id, new_s["lang_set"])
         return
 
     if data == "cancel":
-        answer_callback_query(query.id, "Cancelled.")
+        answer_callback_query(query.id, s["btn_cancel"])
         try:
-            query.edit_message_text("❌ Action cancelled. Send a new TikTok link whenever you're ready.")
+            query.edit_message_text(s["cancelled_msg"])
         except Exception:
             pass
         return
 
     if data == "buy_lifetime":
-        answer_callback_query(query.id, "Opening checkout...")
+        answer_callback_query(query.id, s["opening_checkout"])
         await context.bot.send_invoice(
             chat_id=chat_id,
-            title="Lifetime Premium Pass",
-            description="Unlock lifetime unlimited downloads with zero ads!",
+            title=s["premium_title"],
+            description=s["premium_desc"],
             payload="lifetime_premium_pass",
             provider_token="",  # Telegram Stars uses empty provider token
             currency="XTR",
-            prices=[LabeledPrice("Lifetime Premium", 100)]
+            prices=[LabeledPrice(s["premium_title"], 100)]
         )
         return
 
     if data.startswith("quality_"):
         choice = data.split("_", 1)[1]
         if not user_has_access(user_id):
-            answer_callback_query(query.id, "⚠️ You must watch the ad or buy premium first!", alert=True)
+            answer_callback_query(query.id, s["must_watch_ad"], alert=True)
             return
-            
+
         tiktok_url = user.get("last_tiktok_url")
         if not tiktok_url:
-            answer_callback_query(query.id, "❌ No TikTok link found.", alert=True)
+            answer_callback_query(query.id, s["no_link_found"], alert=True)
             return
-        
-        answer_callback_query(query.id, strings["processing"])
+
+        answer_callback_query(query.id, s["processing"])
         threading.Thread(target=process_download_job, args=(chat_id, user_id, tiktok_url, choice), daemon=True).start()
         return
 
@@ -386,45 +452,46 @@ async def pre_checkout_handler(update: Update, context: ContextTypes.DEFAULT_TYP
 async def successful_payment_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_id = update.effective_user.id
     chat_id = update.effective_chat.id
-    
+
     set_lifetime_premium(user_id)
     user = get_user(user_id)
-    strings = LANG_STRINGS.get(user.get("language", "en"), LANG_STRINGS["en"])
-    
+    lang = user.get("language", "en")
+    s = strings_for(lang)
+
     send_telegram_message(
         chat_id,
-        strings["premium_success"] + "\n\n" + strings["quality_prompt"],
-        reply_markup=make_quality_keyboard()
+        s["premium_success"] + "\n\n" + s["quality_prompt"],
+        reply_markup=make_quality_keyboard(lang)
     )
 
 async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
     user_id = update.effective_user.id
-    
+
     user = get_user(user_id)
     lang = user.get("language", "en")
-    strings = LANG_STRINGS.get(lang, LANG_STRINGS["en"])
+    s = strings_for(lang)
 
     if TIKTOK_RE.search(text):
         set_user_tiktok_url(user_id, text)
-        
+
         if user_has_access(user_id):
             send_telegram_message(
                 chat_id,
-                strings["quality_prompt"],
-                reply_markup=make_quality_keyboard()
+                s["quality_prompt"],
+                reply_markup=make_quality_keyboard(lang)
             )
         else:
             job_id = create_ad_job(user_id, chat_id, text)
             send_telegram_message(
                 chat_id,
-                "To continue, watch a short ad (15s) or buy premium:",
-                reply_markup=make_ad_gate_keyboard(user_id, job_id, text)
+                s["ad_gate_msg"],
+                reply_markup=make_ad_gate_keyboard(user_id, job_id, text, lang)
             )
         return
 
-    send_telegram_message(chat_id, strings["send_link"])
+    send_telegram_message(chat_id, s["send_link"])
 
 # ============ FLASK ENDPOINTS ============
 @flask_app.route("/health", methods=["GET"])
@@ -438,24 +505,25 @@ def verify_ad():
         data = request.get_json() or {}
         job_id = data.get("job_id")
         user_id = data.get("user_id")
-        
+
         job = get_ad_job(job_id)
         if not job:
             return jsonify({"success": False, "error": "Job not found"}), 404
-        
+
         mark_job_verified(job_id)
         grant_temporary_pass(int(user_id), duration_hours=24)
-        
+
         chat_id = job["chat_id"]
         user = get_user(int(user_id))
-        strings = LANG_STRINGS.get(user.get("language", "en"), LANG_STRINGS["en"])
-        
+        lang = user.get("language", "en")
+        s = strings_for(lang)
+
         send_telegram_message(
             chat_id,
-            strings["quality_prompt"],
-            reply_markup=make_quality_keyboard()
+            s["quality_prompt"],
+            reply_markup=make_quality_keyboard(lang)
         )
-        
+
         return jsonify({"success": True, "message": "Ad verified & quality menu sent!"})
     except Exception as e:
         return jsonify({"success": False, "error": str(e)}), 500
