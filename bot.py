@@ -3,7 +3,7 @@ import logging
 import asyncio
 from flask import Flask, request, jsonify
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.ext import ApplicationBuilder, ContextTypes, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 import aiohttp
 
 # Configure logging
@@ -13,14 +13,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Environment variables
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-HOST = os.getenv("HOST", "https://tiktok-downloader-bot-986c.onrender.com")
 
-# Temporary job/user storage for verification flow
+# Storage to track user verification status
 active_jobs = {}
 
-# Initialize Flask app for webhooks/ad verification
 app = Flask(__name__)
 
 @app.route('/verify_ad', methods=['POST'])
@@ -32,17 +29,14 @@ def verify_ad():
     if not user_id or not job_id:
         return jsonify({"success": False, "error": "Missing parameters"}), 400
         
-    # Mark job as verified
     active_jobs[job_id] = {"user_id": user_id, "verified": True}
     logger.info(f"Ad verified successfully for user {user_id}, job {job_id}")
-    
     return jsonify({"success": True})
 
 def run_flask():
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
 
-# Fetch live GitHub stars count dynamically
 async def get_github_stars():
     try:
         async with aiohttp.ClientSession() as session:
@@ -52,32 +46,19 @@ async def get_github_stars():
                     return data.get("stargazers_count", 0)
     except Exception as e:
         logger.error(f"Error fetching GitHub stars: {e}")
-    return 10  # Fallback default
+    return 10
 
-# Telegram Handlers
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
-    args = context.args
-    
-    # Check if returning from ad verification
-    if args and args[0].startswith("ad_verified_"):
-        job_id = args[0].replace("ad_verified_", "")
-        if job_id in active_jobs and active_jobs[job_id].get("verified"):
-            await update.message.reply_text(
-                "🎉 **Ad Verification Successful!**\n\nHere is your processed TikTok video download link:",
-                parse_mode="Markdown"
-            )
-            return
-
     stars = await get_github_stars()
     
     welcome_text = (
-        f"👋 Welcome, {user.first_name}!\n\n"
+        f"👋 ሰላም {user.first_name}!እንኳን ደህና መጡ።\n\n"
         f"⭐ **GitHub Stars:** {stars}\n"
-        "🔥 Send me any TikTok video link to download it without watermarks, or choose a theme color below:"
+        "🔥 ማንኛውንም የቲክቶክ ሊንክ ይላኩ ወይም ከታች ያሉትን የቴምፕ ቀለም ምርጫዎች ይጠቀሙ:"
     )
     
-    # Working Color Buttons Keyboard
+    # Restored Color Theme Buttons
     keyboard = [
         [
             InlineKeyboardButton("🔴 Red Theme", callback_data="color_red"),
@@ -90,19 +71,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
     
-    # Check if triggered via start deep link parameter
-    if args and args[0] == "download":
-        job_id = "job_" + str(user.id)
-        web_app_url = f"https://ayanafikadu9-code.github.io/TikTok-Downloader/?user_id={user.id}&job_id={job_id}"
-        
-        ad_keyboard = [[InlineKeyboardButton("🔥 Watch Ad to Unlock Video", url=web_app_url)]]
-        await update.message.reply_text(
-            "⚠️ **Action Required:** Please watch a short sponsored ad to unlock your TikTok download.",
-            reply_markup=InlineKeyboardMarkup(ad_keyboard),
-            parse_mode="Markdown"
-        )
-        return
-
     await update.message.reply_text(welcome_text, reply_markup=reply_markup, parse_mode="Markdown")
 
 async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -127,37 +95,55 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         web_app_url = f"https://ayanafikadu9-code.github.io/TikTok-Downloader/?user_id={user.id}&job_id={job_id}&link={text}"
         
-        keyboard = [[InlineKeyboardButton("🔥 Watch Ad to Unlock Video", url=web_app_url)]]
-        await update.message.reply_text(
-            "📥 **TikTok Link Received!**\n\nClick the button below to complete a quick sponsored step and download your video:",
+        keyboard = [
+            [InlineKeyboardButton("📺 Watch Ad to Unlock Video", url=web_app_url)],
+            [InlineKeyboardButton("⭐ Buy Lifetime Premium", callback_data="premium")],
+            [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+        ]
+        
+        # Save job context to check later
+        active_jobs[job_id] = {"user_id": user.id, "verified": False, "chat_id": update.effective_chat.id}
+        
+        msg = await update.message.reply_text(
+            "📥 **TikTok Link Received!**\n\nClick the button below to watch the quick ad. Your video will be delivered automatically right after!",
             reply_markup=InlineKeyboardMarkup(keyboard),
             parse_mode="Markdown"
         )
+        
+        # Background loop to check when the web app pings back verification
+        asyncio.create_task(check_verification_status(job_id, context, msg.message_id, update.effective_chat.id))
     else:
-        await update.message.reply_text("❌ Please send a valid TikTok video link.")
+        await update.message.reply_text("❌ እባክዎ ትክክለኛ የቲክቶክ ሊንክ ይላኩ።")
+
+async def check_verification_status(job_id, context, message_id, chat_id):
+    # Wait up to 3 minutes for the user to finish watching the ad
+    for _ in range(60):
+        await asyncio.sleep(3)
+        job = active_jobs.get(job_id)
+        if job and job.get("verified"):
+            # Automatically deliver the video when verified!
+            await context.bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=message_id,
+                text="🎉 **Ad Verified Successfully!**\n\nHere is your processed TikTok video download link:",
+                parse_mode="Markdown"
+            )
+            # Here you can also trigger your video downloading/sending function
+            return
 
 def main():
     if not BOT_TOKEN:
-        logger.error("No BOT_TOKEN found in environment variables!")
+        logger.error("No BOT_TOKEN found!")
         return
 
-    # Start Flask server in background thread for ad verification callbacks
     import threading
-    flask_thread = threading.Thread(target=run_flask)
-    flask_thread.daemon = True
-    flask_thread.start()
+    threading.Thread(target=run_flask, daemon=True).start()
 
-    # Build Telegram Bot
     application = ApplicationBuilder().token(BOT_TOKEN).build()
-
     application.add_handler(CommandHandler("start", start))
     application.add_handler(CallbackQueryHandler(button_callback))
-    application.add_handler(CommandHandler("download", start))
-    
-    from telegram.ext import MessageHandler, filters
     application.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), handle_message))
 
-    logger.info("Bot is starting polling...")
     application.run_polling()
 
 if __name__ == '__main__':
