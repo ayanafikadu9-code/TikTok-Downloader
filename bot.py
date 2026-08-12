@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TikTok Downloader Telegram Bot - Cleaned & Production-Ready for Render
+TikTok Downloader Telegram Bot - WebApp & UI Fixed
 """
 
 import os
@@ -16,7 +16,7 @@ import requests
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, LabeledPrice, WebAppInfo
 from telegram.ext import (
     ApplicationBuilder,
     CommandHandler,
@@ -221,7 +221,7 @@ LANG_STRINGS = {
     }
 }
 
-# ============ KEYBOARDS ============
+# ============ KEYBOARDS (Custom Layout matching your design) ============
 def make_language_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -229,12 +229,12 @@ def make_language_keyboard():
         [InlineKeyboardButton("🌍 Afaan Oromoo", callback_data="lang_om")],
     ])
 
-def make_ad_gate_keyboard(user_id: int, job_id: int, link: str):
-    ad_url = f"{AD_PAGE_URL}?user_id={user_id}&job_id={job_id}&link={requests.utils.quote(link)}"
+def make_ad_gate_keyboard(user_id: int, job_id: str, link: str):
+    web_app_url = f"{AD_PAGE_URL}?user_id={user_id}&job_id={job_id}&link={requests.utils.quote(link)}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("📺 Watch Ad (15s)", url=ad_url)],
-        [InlineKeyboardButton("⭐ Buy Lifetime Premium (100 ⭐️)", callback_data="buy_lifetime")],
-        [InlineKeyboardButton("❌ Cancel", callback_data="cancel")],
+        [InlineKeyboardButton("👉 Watch ad", web_app=WebAppInfo(url=web_app_url))],
+        [InlineKeyboardButton("Buy Premium", callback_data="buy_lifetime")],
+        [InlineKeyboardButton("Skip", callback_data="skip_ad")],
     ])
 
 def make_quality_keyboard():
@@ -341,10 +341,15 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         send_telegram_message(chat_id, new_strings["lang_set"])
         return
 
-    if data == "cancel":
-        answer_callback_query(query.id, "Cancelled.")
+    if data in ("cancel", "skip_ad"):
+        answer_callback_query(query.id, "Proceeding...")
         try:
-            query.edit_message_text("❌ Action cancelled. Send a new TikTok link anytime.")
+            grant_temporary_pass(user_id, duration_hours=24)
+            tiktok_url = user.get("last_tiktok_url")
+            if tiktok_url:
+                query.edit_message_text(strings["quality_prompt"], reply_markup=make_quality_keyboard())
+            else:
+                query.edit_message_text("❌ No TikTok link found. Send a new one.")
         except Exception:
             pass
         return
@@ -358,7 +363,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
             payload="lifetime_premium_pass",
             provider_token="",  # Telegram Stars
             currency="XTR",
-            prices=[LabeledPrice("Lifetime Premium", 100)]  # 100 Stars
+            prices=[LabeledPrice("Lifetime Premium", 100)]
         )
         return
 
@@ -419,7 +424,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             job_id = create_ad_job(user_id, chat_id, text)
             send_telegram_message(
                 chat_id,
-                strings["link_received"],
+                "To continue, watch a short ad or buy premium:",
                 reply_markup=make_ad_gate_keyboard(user_id, job_id, text)
             )
         return
