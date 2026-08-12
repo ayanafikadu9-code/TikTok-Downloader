@@ -189,8 +189,20 @@ def get_bot_stats() -> dict:
     )[0]
     audio_downloads = _db_exec("SELECT COUNT(*) FROM downloads WHERE mode='audio'", fetchone=True)[0]
     day_ago = int(time.time()) - 86400
+    week_ago = int(time.time()) - (86400 * 7)
+    month_ago = int(time.time()) - (86400 * 30)
+    year_ago = int(time.time()) - (86400 * 365)
     downloads_today = _db_exec(
         "SELECT COUNT(*) FROM downloads WHERE created_at > ?", (day_ago,), fetchone=True
+    )[0]
+    downloads_week = _db_exec(
+        "SELECT COUNT(*) FROM downloads WHERE created_at > ?", (week_ago,), fetchone=True
+    )[0]
+    downloads_month = _db_exec(
+        "SELECT COUNT(*) FROM downloads WHERE created_at > ?", (month_ago,), fetchone=True
+    )[0]
+    downloads_year = _db_exec(
+        "SELECT COUNT(*) FROM downloads WHERE created_at > ?", (year_ago,), fetchone=True
     )[0]
     return {
         "total_users": total_users,
@@ -201,6 +213,9 @@ def get_bot_stats() -> dict:
         "video_downloads": video_downloads,
         "audio_downloads": audio_downloads,
         "downloads_today": downloads_today,
+        "downloads_week": downloads_week,
+        "downloads_month": downloads_month,
+        "downloads_year": downloads_year,
     }
 
 # ============ TELEGRAM API HELPERS ============
@@ -437,7 +452,7 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"📥 Total downloads delivered: <b>{s['total_downloads']}</b>\n"
         f"  🎬 Videos: <b>{s['video_downloads']}</b>\n"
         f"  🎵 Audio: <b>{s['audio_downloads']}</b>\n\n"
-        f"📈 Downloads in last 24h: <b>{s['downloads_today']}</b>"
+        f"📈 Downloads — 24h: <b>{s['downloads_today']}</b> · 7d: <b>{s['downloads_week']}</b> · 30d: <b>{s['downloads_month']}</b> · 365d: <b>{s['downloads_year']}</b>"
     )
     send_telegram_message(chat_id, msg)
 
