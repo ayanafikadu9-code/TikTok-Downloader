@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TikTok Downloader Telegram Bot - WebApp & UI Fixed
+TikTok Downloader Telegram Bot - Strict Ad-Gate Fix
 """
 
 import os
@@ -221,7 +221,7 @@ LANG_STRINGS = {
     }
 }
 
-# ============ KEYBOARDS (Custom Layout matching your design) ============
+# ============ KEYBOARDS ============
 def make_language_keyboard():
     return InlineKeyboardMarkup([
         [InlineKeyboardButton("🇬🇧 English", callback_data="lang_en")],
@@ -232,9 +232,9 @@ def make_language_keyboard():
 def make_ad_gate_keyboard(user_id: int, job_id: str, link: str):
     web_app_url = f"{AD_PAGE_URL}?user_id={user_id}&job_id={job_id}&link={requests.utils.quote(link)}"
     return InlineKeyboardMarkup([
-        [InlineKeyboardButton("👉 Watch ad", web_app=WebAppInfo(url=web_app_url))],
-        [InlineKeyboardButton("Buy Premium", callback_data="buy_lifetime")],
-        [InlineKeyboardButton("Skip", callback_data="skip_ad")],
+        [InlineKeyboardButton("👉 Watch Ad (15s)", web_app=WebAppInfo(url=web_app_url))],
+        [InlineKeyboardButton("⭐ Buy Lifetime Premium (100 ⭐)", callback_data="buy_lifetime")],
+        [InlineKeyboardButton("❌ Cancel / Watch Ad", web_app=WebAppInfo(url=web_app_url))],
     ])
 
 def make_quality_keyboard():
@@ -341,15 +341,10 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
         send_telegram_message(chat_id, new_strings["lang_set"])
         return
 
-    if data in ("cancel", "skip_ad"):
-        answer_callback_query(query.id, "Proceeding...")
+    if data == "cancel":
+        answer_callback_query(query.id, "Cancelled.")
         try:
-            grant_temporary_pass(user_id, duration_hours=24)
-            tiktok_url = user.get("last_tiktok_url")
-            if tiktok_url:
-                query.edit_message_text(strings["quality_prompt"], reply_markup=make_quality_keyboard())
-            else:
-                query.edit_message_text("❌ No TikTok link found. Send a new one.")
+            query.edit_message_text("❌ Action cancelled. Send a new TikTok link whenever you're ready.")
         except Exception:
             pass
         return
@@ -370,7 +365,7 @@ async def callback_query_handler(update: Update, context: ContextTypes.DEFAULT_T
     if data.startswith("quality_"):
         choice = data.split("_", 1)[1]
         if not user_has_access(user_id):
-            answer_callback_query(query.id, "Please watch the ad or buy premium first.", alert=True)
+            answer_callback_query(query.id, "⚠️ You must watch the ad or buy premium first!", alert=True)
             return
             
         tiktok_url = user.get("last_tiktok_url")
@@ -424,7 +419,7 @@ async def text_message_handler(update: Update, context: ContextTypes.DEFAULT_TYP
             job_id = create_ad_job(user_id, chat_id, text)
             send_telegram_message(
                 chat_id,
-                "To continue, watch a short ad or buy premium:",
+                "To continue, watch a short ad (15s) or buy premium:",
                 reply_markup=make_ad_gate_keyboard(user_id, job_id, text)
             )
         return
@@ -438,7 +433,7 @@ def health():
 
 @flask_app.route("/verify_ad", methods=["POST"])
 def verify_ad():
-    """Called automatically by your GitHub Pages ad page after 15 seconds"""
+    """Called automatically by your GitHub Pages ad page after the ad timer finishes"""
     try:
         data = request.get_json() or {}
         job_id = data.get("job_id")
