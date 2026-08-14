@@ -385,7 +385,7 @@ def make_quality_keyboard(lang: str):
     ])
 
 # ============ DOWNLOAD HANDLERS ============
-def call_tikwm_api(tiktok_url: str, mode: str) -> Optional[str]:
+def fetch_tikwm_json(tiktok_url: str, mode: str) -> Optional[dict]:
     if not TIKWM_API_URL:
         return None
     try:
@@ -394,17 +394,40 @@ def call_tikwm_api(tiktok_url: str, mode: str) -> Optional[str]:
         resp = requests.get(TIKWM_API_URL, params=params, headers=headers, timeout=30)
         resp.raise_for_status()
         data = resp.json()
-        if isinstance(data, dict):
-            for k in ("download_url", "url", "data", "download"):
-                if k in data and isinstance(data[k], str) and data[k].startswith("http"):
-                    return data[k]
-        return None
+        return data if isinstance(data, dict) else None
     except Exception:
         return None
 
+def call_tikwm_api(tiktok_url: str, mode: str) -> Optional[str]:
+    data = fetch_tikwm_json(tiktok_url, mode)
+    if not data:
+        return None
+    for k in ("download_url", "url", "data", "download"):
+        if k in data and isinstance(data[k], str) and data[k].startswith("http"):
+            return data[k]
+    return None
+
+def find_image_urls(obj) -> list:
+    """Recursively scan any JSON structure for likely image URLs — used to
+    detect TikTok photo/slideshow posts from a tikwm-style API response,
+    whatever shape it comes back in (e.g. data.images[], result.images[])."""
+    found = []
+    if isinstance(obj, str):
+        if obj.startswith("http") and any(ext in obj.lower() for ext in (".jpg", ".jpeg", ".webp", ".png")):
+            found.append(obj)
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            found.extend(find_image_urls(v))
+    elif isinstance(obj, list):
+        for item in obj:
+            found.extend(find_image_urls(item))
+    return found
+
 def fetch_tiktok_info(tiktok_url: str) -> Optional[dict]:
-    """Run yt-dlp -j to inspect a link before downloading — used to detect
-    TikTok photo/slideshow posts, which have no video stream at all."""
+    """Run yt-dlp -j to inspect a link before downloading — fallback path
+    for photo detection when TIKWM_API_URL isn't set or doesn't have images.
+    Less reliable than the API — yt-dlp's TikTok photo-post support has a
+    history of being inconsistent across versions."""
     try:
         result = subprocess.run(
             ["yt-dlp", "-j", tiktok_url],
@@ -422,7 +445,13 @@ def extract_photo_urls(info: dict) -> list:
     entries = info.get("entries")
     if entries:
         for e in entries:
-            u = e.get("url") or e.get("thumbnail")
+            u = e.get("url")
+            if not u and e.get("thumbnails"):
+                thumbs = e["thumbnails"]
+                if thumbs:
+                    u = thumbs[-1].get("url")
+            if not u:
+                u = e.get("thumbnail")
             if u:
                 urls.append(u)
     if not urls and info.get("thumbnails"):
@@ -438,8 +467,24 @@ def download_via_yt_dlp(tiktok_url: str, out_path: str, extract_audio: bool = Fa
 
 def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str):
     try:
-        dl_url = call_tikwm_api(tiktok_url, mode) if TIKWM_API_URL else None
+        raw_api_data = fetch_tikwm_json(tiktok_url, mode) if TIKWM_API_URL else None
+        dl_url = None
+        if raw_api_data:
+            for k in ("download_url", "url", "data", "download"):
+                if k in raw_api_data and isinstance(raw_api_data[k], str) and raw_api_data[k].startswith("http"):
+                    dl_url = raw_api_data[k]
+                    break
         tmp_filename = None
+
+        # Check for a photo/slideshow post FIRST (before attempting a video
+        # download at all) if the API is configured — tikwm-style APIs
+        # reliably return an "images" array for these, no need to guess.
+        if mode != "audio" and not dl_url and raw_api_data:
+            image_urls = find_image_urls(raw_api_data)
+            if image_urls:
+                send_photo_album(chat_id, image_urls, caption="✅ Here are your photos!")
+                log_download(user_id, "photo")
+                return
 
         if dl_url:
             ext = "mp3" if mode == "audio" else "mp4"
@@ -463,8 +508,8 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
             try:
                 download_via_yt_dlp(tiktok_url, out_path, extract_audio=False)
             except subprocess.CalledProcessError:
-                # No video stream — likely a TikTok photo/slideshow post.
-                # Check before giving up entirely.
+                # Last resort: no API images found either. Try yt-dlp's own
+                # (less reliable) photo-post detection before giving up.
                 info = fetch_tiktok_info(tiktok_url)
                 if info:
                     photo_urls = extract_photo_urls(info)
