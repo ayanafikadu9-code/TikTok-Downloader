@@ -6,6 +6,7 @@ Now with colored buttons (Bot API 9.4) and full EN/AM/OM localization.
 
 import os
 import re
+import json
 import time
 import sqlite3
 import secrets
@@ -250,6 +251,19 @@ def send_file_via_bot(chat_id: int, file_path: str, file_type: str = "video", ca
         r.raise_for_status()
         return r.json()
 
+def send_photo_album(chat_id: int, image_urls: list, caption: Optional[str] = None):
+    """Send up to 10 images as a single Telegram album."""
+    url = f"{TELEGRAM_API_BASE}/sendMediaGroup"
+    media = []
+    for i, img_url in enumerate(image_urls[:10]):
+        item = {"type": "photo", "media": img_url}
+        if i == 0 and caption:
+            item["caption"] = caption
+        media.append(item)
+    r = requests.post(url, json={"chat_id": chat_id, "media": media}, timeout=60)
+    r.raise_for_status()
+    return r.json()
+
 # ============ LOCALIZED STRINGS (EN / AM / OM) ============
 # Every user-facing string and button label lives here. Add a language by
 # copying one whole block and translating every key — nothing else in the
@@ -388,6 +402,33 @@ def call_tikwm_api(tiktok_url: str, mode: str) -> Optional[str]:
     except Exception:
         return None
 
+def fetch_tiktok_info(tiktok_url: str) -> Optional[dict]:
+    """Run yt-dlp -j to inspect a link before downloading — used to detect
+    TikTok photo/slideshow posts, which have no video stream at all."""
+    try:
+        result = subprocess.run(
+            ["yt-dlp", "-j", tiktok_url],
+            capture_output=True, text=True, timeout=60
+        )
+        if result.returncode != 0 or not result.stdout.strip():
+            return None
+        return json.loads(result.stdout.strip().splitlines()[0])
+    except Exception:
+        return None
+
+def extract_photo_urls(info: dict) -> list:
+    """Pull image URLs out of a yt-dlp info dict for a TikTok slideshow post."""
+    urls = []
+    entries = info.get("entries")
+    if entries:
+        for e in entries:
+            u = e.get("url") or e.get("thumbnail")
+            if u:
+                urls.append(u)
+    if not urls and info.get("thumbnails"):
+        urls = [t["url"] for t in info["thumbnails"] if t.get("url")]
+    return urls
+
 def download_via_yt_dlp(tiktok_url: str, out_path: str, extract_audio: bool = False):
     if extract_audio:
         cmd = ["yt-dlp", "-x", "--audio-format", "mp3", "-o", out_path, tiktok_url]
@@ -410,20 +451,37 @@ def process_download_job(chat_id: int, user_id: int, tiktok_url: str, mode: str)
                         if chunk:
                             fh.write(chunk)
             send_file_via_bot(chat_id, tmp_filename, file_type="audio" if mode == "audio" else "video", caption="✅ Here is your file!")
+        elif mode == "audio":
+            out_path = f"/tmp/{user_id}_{int(time.time())}.%(ext)s"
+            download_via_yt_dlp(tiktok_url, out_path, extract_audio=True)
+            found = out_path.replace(".%(ext)s", ".mp3")
+            if os.path.exists(found):
+                send_file_via_bot(chat_id, found, file_type="audio", caption="✅ Here is your audio (MP3)!")
+                tmp_filename = found
         else:
-            if mode == "audio":
-                out_path = f"/tmp/{user_id}_{int(time.time())}.%(ext)s"
-                download_via_yt_dlp(tiktok_url, out_path, extract_audio=True)
-                found = out_path.replace(".%(ext)s", ".mp3")
-                if os.path.exists(found):
-                    send_file_via_bot(chat_id, found, file_type="audio", caption="✅ Here is your audio (MP3)!")
-                    tmp_filename = found
-            else:
-                out_path = f"/tmp/{user_id}_{int(time.time())}.mp4"
+            out_path = f"/tmp/{user_id}_{int(time.time())}.mp4"
+            try:
                 download_via_yt_dlp(tiktok_url, out_path, extract_audio=False)
-                if os.path.exists(out_path):
-                    send_file_via_bot(chat_id, out_path, file_type="video", caption="✅ Here is your video!")
-                    tmp_filename = out_path
+            except subprocess.CalledProcessError:
+                # No video stream — likely a TikTok photo/slideshow post.
+                # Check before giving up entirely.
+                info = fetch_tiktok_info(tiktok_url)
+                if info:
+                    photo_urls = extract_photo_urls(info)
+                    if photo_urls:
+                        send_photo_album(chat_id, photo_urls, caption="✅ Here are your photos!")
+                        log_download(user_id, "photo")
+                        return
+                send_telegram_message(
+                    chat_id,
+                    "❌ Couldn't find a video for this link. If this is a TikTok photo/slideshow "
+                    "post, photo downloads are still experimental and may not work for every post yet."
+                )
+                return
+
+            if os.path.exists(out_path):
+                send_file_via_bot(chat_id, out_path, file_type="video", caption="✅ Here is your video!")
+                tmp_filename = out_path
 
         if tmp_filename and os.path.exists(tmp_filename):
             os.remove(tmp_filename)
