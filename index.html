@@ -47,7 +47,6 @@
             line-height: 1.4;
         }
         
-        /* Larger Ad Slot Container */
         .ad-slot {
             width: 100%;
             min-height: 320px;
@@ -178,23 +177,19 @@
         <h1>🔥 Watch Ad to Unlock</h1>
         <p class="subtitle">Your TikTok download will be ready when the timer finishes!</p>
         
-        <!-- Two Monetag zones running together: Vignette (full-screen
-             overlay) + In-Page Push (floating toast cards). Both render
-             on their own, independent of this box. -->
         <div class="ad-slot" id="ad-slot">
             Ad will appear automatically...
         </div>
+
         <script>(function(s){s.dataset.zone='11561067',s.src='https://n6wxm.com/vignette.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
         <script>(function(s){s.dataset.zone='11560031',s.src='https://nap5k.com/tag.min.js'})([document.documentElement, document.body].filter(Boolean).pop().appendChild(document.createElement('script')))</script>
         
-        <!-- Timer Section -->
         <div class="timer-section">
             <div class="timer-label">⏱️ Time Remaining:</div>
             <div class="timer" id="countdown">15</div>
             <div class="status loading" id="status">Watching ad... Do not close this tab!</div>
         </div>
         
-        <!-- Action Buttons -->
         <div class="button-container">
             <button id="continue-btn" class="verify-btn" onclick="handleVerify()" disabled>
                 ✅ Verify & Get Your Video
@@ -248,8 +243,6 @@
             statusEl.textContent = "Verifying... Please wait...";
             
             try {
-                // FIXED: this now matches the real Render URL from your
-                // dashboard (tiktok-downloader-z10d, not -bot-986c).
                 const response = await fetch("https://tiktok-downloader-z10d.onrender.com/verify_ad", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
